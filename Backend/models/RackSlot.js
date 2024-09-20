@@ -1,6 +1,5 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
-
+const {  DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 const RackSlot = sequelize.define('RackSlot', {
     id: {
         type: DataTypes.INTEGER,
@@ -39,3 +38,4 @@ const RackSlot = sequelize.define('RackSlot', {
 });
 
 module.exports = RackSlot;
+

@@ -1,6 +1,6 @@
 // models/Item.js
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const {  DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 const Category = require('./Category');
 const Supplier = require('./Supplier');
 

@@ -5,72 +5,120 @@ const RackSlot = require('../models/RackSlot');
 
 // Create a new stock movement
 exports.createStockMovement = async (req, res) => {
-    const { itemId, fromRackId, fromSlotLabel, toRackId, toSlotLabel, quantity, movementDate, movedBy } = req.body;
-
-    if (!itemId || !fromRackId || !fromSlotLabel || !toRackId || !toSlotLabel || !quantity || !movementDate || !movedBy) {
+    const { itemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity, movementDate, movedBy } = req.body;
+               console.log(req.body)
+    // Check for missing fields
+    if (!itemId || !fromRackId || !fromSlotId || !toRackId || !toSlotId || !quantity || !movementDate || !movedBy) {
         return res.status(400).json({ error: 'All fields are required' });
     }
 
-    try {
-        const fromRackItem = await RackItem.findOne({ where: { itemId, rackSlotLabel: fromSlotLabel, rackId: fromRackId } });
-        const toRackItem = await RackItem.findOne({ where: { itemId, rackSlotLabel: toSlotLabel, rackId: toRackId } });
-        const fromRackSlot = await RackSlot.findOne({ where: { rackId: fromRackId, slotLabel: fromSlotLabel } });
-        const toRackSlot = await RackSlot.findOne({ where: { rackId: toRackId, slotLabel: toSlotLabel } });
+    // Convert quantity to integer if it is coming as a string
+    const quantityInt = parseInt(quantity, 10);
+    if (isNaN(quantityInt)) {
+        return res.status(400).json({ error: 'Quantity must be a valid number' });
+    }
 
+    // Log incoming request data for debugging
+    console.log('Request Data:', { itemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity: quantityInt, movementDate, movedBy });
+
+    try {
+        // Log the RackItem search query parameters
+        console.log('Searching for From Rack Item with:', { itemId, rackSlotId: fromSlotId });
+        const fromRackItem = await RackItem.findOne({ 
+            where: { itemId, rackSlotId: fromSlotId }
+        });
+        console.log('From Rack Item:', fromRackItem); // Debugging
+
+        console.log('Searching for To Rack Item with:', { itemId, rackSlotId: toSlotId });
+        const toRackItem = await RackItem.findOne({ 
+            where: { itemId, rackSlotId: toSlotId }
+        });
+        console.log('To Rack Item:', toRackItem); // Debugging
+
+        // Log the RackSlot search query parameters
+        console.log('Searching for From Rack Slot with id:', fromSlotId);
+        const fromRackSlot = await RackSlot.findOne({ 
+            where: { id: fromSlotId } 
+        });
+        console.log('From Rack Slot:', fromRackSlot); // Debugging
+
+        console.log('Searching for To Rack Slot with id:', toSlotId);
+        const toRackSlot = await RackSlot.findOne({ 
+            where: { id: toSlotId } 
+        });
+        console.log('To Rack Slot:', toRackSlot); // Debugging
+
+        // Check if the source RackItem is found
         if (!fromRackItem) {
+            console.log('Error: Item not found in the source slot'); // Debugging
             return res.status(400).json({ error: 'Item not found in the source slot' });
         }
 
-        if (fromRackItem.quantityStored < quantity) {
+        // Check if the quantity in the source RackItem is sufficient
+        if (fromRackItem.quantityStored < quantityInt) {
+            console.log('Error: Insufficient quantity in the source slot'); // Debugging
             return res.status(400).json({ error: 'Insufficient quantity in the source slot' });
         }
 
-        if (toRackSlot.currentCapacity + quantity > toRackSlot.slotCapacity) {
+        // Check if the destination RackSlot has enough capacity
+        if (toRackSlot.currentCapacity + quantityInt > toRackSlot.slotCapacity) {
+            console.log('Error: Not enough capacity in the destination slot'); // Debugging
             return res.status(400).json({ error: 'Not enough capacity in the destination slot' });
         }
 
         // Update quantities and capacities
-        fromRackItem.quantityStored -= quantity;
+        fromRackItem.quantityStored -= quantityInt;
         await fromRackItem.save();
+        console.log('Updated From Rack Item:', fromRackItem); // Debugging
 
         if (toRackItem) {
-            toRackItem.quantityStored += quantity;
+            toRackItem.quantityStored += quantityInt;
             await toRackItem.save();
+            console.log('Updated To Rack Item:', toRackItem); // Debugging
         } else {
             await RackItem.create({
                 itemId,
-                rackSlotLabel: toSlotLabel,
-                rackId: toRackId,
-                quantityStored: quantity,
+                rackSlotId: toSlotId,
+                quantityStored: quantityInt,
                 dateStored: movementDate,
                 labelGenerated: false,
                 materialCode: 'M3456'
             });
+            console.log('Created New Rack Item in Destination Slot'); // Debugging
         }
 
-        fromRackSlot.currentCapacity += quantity;
-        toRackSlot.currentCapacity -= quantity;
-
+        // Update RackSlot capacities
+        fromRackSlot.currentCapacity += quantityInt;
+        toRackSlot.currentCapacity -= quantityInt;
         await fromRackSlot.save();
         await toRackSlot.save();
 
+        console.log('Updated From Rack Slot:', fromRackSlot); // Debugging
+        console.log('Updated To Rack Slot:', toRackSlot); // Debugging
+
+        // Record the stock movement
         await StockMovement.create({
             itemId,
             fromRackId,
-            fromSlotLabel,
+            fromSlotId,
             toRackId,
-            toSlotLabel,
-            quantity,
+            toSlotId,
+            quantity: quantityInt,
             movementDate,
             movedBy
         });
 
+        console.log('Stock Movement Created Successfully'); // Debugging
         res.status(201).json({ message: 'Stock movement created successfully' });
     } catch (error) {
-        console.error('Error creating stock movement:', error.message);
+        console.error('Error creating stock movement:', error.message); // Debugging
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
+
+
+
+
 
 // Update a stock movement
 exports.updateStockMovement = async (req, res) => {

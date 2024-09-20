@@ -1,5 +1,6 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const {  DataTypes } = require('sequelize');
+
+const { sequelize } = require('../config/db');
 const RackItem = require('./RackItem');
 
 const Label = sequelize.define('Label', {

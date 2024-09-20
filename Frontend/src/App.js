@@ -21,6 +21,8 @@ import AdminSidebar from './components/AdminSidebar';
 //import StockMovementList from './pages/management/StockMovementList';
 //import StockMovementPage from './pages/management/StockMovementPage'
 import StockMovementForm from './pages/management/StockMovementForm';
+import FileUpload from './pages/export/FileUpload';
+import DataTable from './pages/export/DataTable';
 function App() {
   return (
     <Router>
@@ -156,6 +158,26 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <StockMovementForm/>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/export"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <FileUpload/>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+           <Route
+            path="/datatables/:tableName"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DataTable />
                 </Layout>
               </ProtectedRoute>
             }

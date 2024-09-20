@@ -1,5 +1,6 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const {  DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db'); // Import correctly
+
 const User = require('./User');
 
 const AuditTrail = sequelize.define('AuditTrail', {

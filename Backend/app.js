@@ -13,8 +13,10 @@ const rackItemRoutes = require('./routes/rackItemRoutes');
 const rackSlotRoutes = require('./routes/rackSlotRoutes');
 const stockMovementRoutes = require('./routes/stockMovementRoutes');
 const roleRoutes = require('./routes/roles');
+const fileRoutes = require('./routes/fileRoutes'); // Import file routes
 
-const sequelize = require('./config/db'); // Import the Sequelize instance
+const { sequelize } = require('./config/db'); // Import the Sequelize instance
+const FileMetadata = require('./models/fileMetadata'); // Import the FileMetadata model
 require('dotenv').config(); // Load environment variables
 
 // Import models and associations
@@ -26,8 +28,11 @@ app.use(cors()); // Consider configuring CORS options if needed
 
 // Test database connection and sync models
 sequelize.sync({ force: false })
-    .then(() => {
+    .then(async () => {
         console.log('Database connected and models synchronized.');
+        // Sync the FileMetadata model
+        await FileMetadata.sync(); // Ensure metadata table is created
+        console.log('FileMetadata table synchronized.');
     })
     .catch(err => {
         console.error('Error syncing the database:', err);
@@ -45,6 +50,7 @@ app.use('/api/rack-items', rackItemRoutes);
 app.use('/api/rack-slots', rackSlotRoutes);
 app.use('/api/role', roleRoutes);
 app.use('/api/stock-movements', stockMovementRoutes);
+app.use('/api/files', fileRoutes); // Use file routes
 
 // Default route for testing
 app.get('/', (req, res) => {

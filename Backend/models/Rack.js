@@ -1,6 +1,6 @@
 // models/Rack.js
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 
 const Rack = sequelize.define('Rack', {
     rackId: {

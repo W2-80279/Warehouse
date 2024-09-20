@@ -1,5 +1,5 @@
-const {Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db'); // Import the Sequelize instance
+const {DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');// Import the Sequelize instance
 
 // Define the Role model
 const Role = sequelize.define('Role', {
