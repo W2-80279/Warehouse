@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, Button, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { TextField, Button, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Snackbar, Alert, Box } from '@mui/material';
 import axios from 'axios';
 
 const RackSlotForm = () => {
@@ -7,6 +7,8 @@ const RackSlotForm = () => {
   const [rackSlot, setRackSlot] = useState({ slotLabel: '', slotCapacity: '', currentCapacity: '', rackId: '' });
   const [racks, setRacks] = useState([]);
   const [editingSlotId, setEditingSlotId] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [availableCapacity, setAvailableCapacity] = useState(0); // To display near "Add Slot" button
 
   const token = localStorage.getItem('token');
 
@@ -15,7 +17,6 @@ const RackSlotForm = () => {
     fetchRacks();
   }, []);
 
-  // Fetch rack slots from API
   const fetchRackSlots = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/rack-slots', {
@@ -24,10 +25,10 @@ const RackSlotForm = () => {
       setRackSlots(response.data);
     } catch (error) {
       console.error('Error fetching rack slots:', error);
+      showSnackbar('Error fetching rack slots', 'error');
     }
   };
 
-  // Fetch racks for the dropdown
   const fetchRacks = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/racks', {
@@ -36,40 +37,67 @@ const RackSlotForm = () => {
       setRacks(response.data);
     } catch (error) {
       console.error('Error fetching racks:', error);
+      showSnackbar('Error fetching racks', 'error');
     }
   };
 
-  // Handle form input changes
+  const fetchAvailableCapacity = async (rackId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/racks/${rackId}/available-capacity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAvailableCapacity(response.data.availableCapacity);
+    } catch (error) {
+      console.error('Error fetching available capacity:', error);
+      showSnackbar('Error fetching available capacity', 'error');
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setRackSlot({ ...rackSlot, [name]: value });
-  };
 
-  // Handle form submission (Add or Update)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      if (editingSlotId) {
-        // Update rack slot
-        await axios.put(`http://localhost:5000/api/rack-slots/${editingSlotId}`, rackSlot, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else {
-        // Add new rack slot
-        await axios.post('http://localhost:5000/api/rack-slots', rackSlot, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-      setRackSlot({ slotLabel: '', slotCapacity: '', currentCapacity: '', rackId: '' }); // Reset form
-      setEditingSlotId(null); // Reset editing state
-      fetchRackSlots(); // Refresh the rack slot list
-    } catch (error) {
-      console.error('Error saving rack slot:', error);
+    // Fetch available capacity when a rack is selected
+    if (name === 'rackId') {
+      fetchAvailableCapacity(value);
     }
   };
 
-  // Handle edit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingSlotId) {
+        await axios.put(`http://localhost:5000/api/rack-slots/${editingSlotId}`, rackSlot, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        showSnackbar('Rack slot updated successfully', 'success');
+      } else {
+        // Check for available capacity when adding a new slot
+        const response = await axios.post('http://localhost:5000/api/rack-slots', rackSlot, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAvailableCapacity(response.data.remainingCapacity); // Update available capacity
+        showSnackbar('Rack slot added successfully', 'success');
+      }
+      resetForm();
+      fetchRackSlots(); // Refresh the rack slot list
+    } catch (error) {
+      if (error.response && error.response.status === 400) {
+        // Handle not enough capacity
+        showSnackbar(`Not enough space. Remaining capacity: ${error.response.data.remainingCapacity}`, 'error');
+      } else {
+        console.error('Error saving rack slot:', error);
+        showSnackbar('Error saving rack slot', 'error');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setRackSlot({ slotLabel: '', slotCapacity: '', currentCapacity: '', rackId: '' });
+    setEditingSlotId(null);
+    setAvailableCapacity(0); // Reset available capacity
+  };
+
   const handleEdit = (slot) => {
     setRackSlot({
       slotLabel: slot.slotLabel,
@@ -78,18 +106,28 @@ const RackSlotForm = () => {
       rackId: slot.rackId,
     });
     setEditingSlotId(slot.id);
+    fetchAvailableCapacity(slot.rackId); // Fetch available capacity for the selected rack
   };
 
-  // Handle delete
   const handleDelete = async (slotId) => {
     try {
       await axios.delete(`http://localhost:5000/api/rack-slots/${slotId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      showSnackbar('Rack slot deleted successfully', 'success');
       fetchRackSlots(); // Refresh the rack slot list
     } catch (error) {
       console.error('Error deleting rack slot:', error);
+      showSnackbar('Error deleting rack slot', 'error');
     }
+  };
+
+  const showSnackbar = (message, severity) => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -102,6 +140,7 @@ const RackSlotForm = () => {
           onChange={handleInputChange}
           fullWidth
           margin="normal"
+          required
         />
         <TextField
           label="Slot Capacity"
@@ -111,6 +150,8 @@ const RackSlotForm = () => {
           type="number"
           fullWidth
           margin="normal"
+          required
+          inputProps={{ min: 1 }}
         />
         <TextField
           label="Current Capacity"
@@ -120,6 +161,8 @@ const RackSlotForm = () => {
           type="number"
           fullWidth
           margin="normal"
+          required
+          inputProps={{ min: 0 }}
         />
         <TextField
           label="Rack"
@@ -129,6 +172,7 @@ const RackSlotForm = () => {
           select
           fullWidth
           margin="normal"
+          required
         >
           {racks.map((rack) => (
             <MenuItem key={rack.rackId} value={rack.rackId}>
@@ -136,10 +180,34 @@ const RackSlotForm = () => {
             </MenuItem>
           ))}
         </TextField>
-        <Button type="submit" variant="contained" color="primary">
-          {editingSlotId ? 'Update Slot' : 'Add Slot'}
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
+          <Button type="submit" variant="contained" color="primary">
+            {editingSlotId ? 'Update Slot' : 'Add Slot'}
+          </Button>
+
+          {/* Transparent Box showing available capacity */}
+          <Box
+            sx={{
+              marginLeft: 2,
+              padding: 1,
+              border: '1px solid rgba(0, 0, 0, 0.2)',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(0, 0, 0, 0.05)',
+              fontSize: '0.9em',
+              color: 'gray',
+            }}
+          >
+            Available Capacity: {availableCapacity}
+          </Box>
+        </Box>
       </form>
+
+      {/* Snackbar for notifications */}
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose}>
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Table of rack slots */}
       <TableContainer component={Paper} style={{ marginTop: '20px' }}>

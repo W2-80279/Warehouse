@@ -6,7 +6,7 @@ const {
   createStockMovement, 
   updateStockMovement, 
   deleteStockMovement 
-} = require('../controllers/StockMovementController'); // Verify this path
+} = require('../controllers/StockMovementController');
 const { auth, authorize } = require('../middleware/auth');
 const { body, param, validationResult } = require('express-validator');
 

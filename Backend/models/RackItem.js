@@ -21,25 +21,40 @@ const RackItem = sequelize.define('RackItem', {
         type: DataTypes.INTEGER,
         references: {
             model: RackSlot,
-            key: 'id' // Ensure this matches the primary key field in RackSlot
+            key: 'id'
         },
         allowNull: false
     },
     quantityStored: {
-        type: DataTypes.INTEGER
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        validate: {
+            isInt: true,
+            min: 1
+        }
     },
     dateStored: {
-        type: DataTypes.DATE
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     },
     labelGenerated: {
-        type: DataTypes.BOOLEAN
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     },
     materialCode: {
-        type: DataTypes.STRING(50)
+        type: DataTypes.STRING(50),
+        allowNull: true
     }
 }, {
     timestamps: false,
     tableName: 'RackItems'
 });
+
+// Associations
+RackItem.belongsTo(Item, { foreignKey: 'itemId' });
+RackItem.belongsTo(RackSlot, { foreignKey: 'rackSlotId' });
+Item.hasMany(RackItem, { foreignKey: 'itemId' });
+RackSlot.hasMany(RackItem, { foreignKey: 'rackSlotId' });
 
 module.exports = RackItem;

@@ -1,5 +1,4 @@
-// models/Item.js
-const {  DataTypes } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const Category = require('./Category');
 const Supplier = require('./Supplier');
@@ -15,13 +14,16 @@ const Item = sequelize.define('Item', {
         unique: true
     },
     name: {
-        type: DataTypes.STRING(100)
+        type: DataTypes.STRING(100),
+        allowNull: false
     },
     description: {
-        type: DataTypes.TEXT
+        type: DataTypes.TEXT,
+        allowNull: true
     },
     unitOfMeasure: {
-        type: DataTypes.STRING(20)
+        type: DataTypes.STRING(20),
+        allowNull: false
     },
     categoryId: {
         type: DataTypes.INTEGER,
@@ -31,10 +33,12 @@ const Item = sequelize.define('Item', {
         }
     },
     stockLevel: {
-        type: DataTypes.INTEGER
+        type: DataTypes.INTEGER,
+        allowNull: false
     },
     minStockLevel: {
-        type: DataTypes.INTEGER
+        type: DataTypes.INTEGER,
+        allowNull: false
     },
     supplierId: {
         type: DataTypes.INTEGER,
@@ -42,9 +46,22 @@ const Item = sequelize.define('Item', {
             model: Supplier,
             key: 'supplierId'
         }
+    },
+    barcode: {
+        type: DataTypes.STRING, // For storing the numeric barcode
+        allowNull: true
+    },
+    barcodeImage: {
+        type: DataTypes.TEXT, // For storing the base64-encoded barcode image
+        allowNull: true
+    },
+    
+    imageUrl: {
+        type: DataTypes.STRING,
+        allowNull: true // URL of the uploaded image
     }
 }, {
-    timestamps: false
+    timestamps: true
 });
 
 module.exports = Item;

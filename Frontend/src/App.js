@@ -4,7 +4,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import AdminDashboard from './components/AdminDashboard';
 import Warehouse from './pages/Warehouse';
-import ManageItem from './pages/ManageItem'; // Ensure this is correctly imported
+import ManageItem from './pages/items/ManageItem'; // Ensure this is correctly imported
 import RackManagement from './pages/Rackmanagement';
 import CategoryPage from './pages/Category'; // Ensure this is correctly imported
 import SupplierPage from './pages/Supplier'; // Ensure this is correctly imported
@@ -20,7 +20,7 @@ import RackSlotForm from './pages/management/RackSlotForm';
 import AdminSidebar from './components/AdminSidebar';
 //import StockMovementList from './pages/management/StockMovementList';
 //import StockMovementPage from './pages/management/StockMovementPage'
-import StockMovementForm from './pages/management/StockMovementForm';
+import StockMovementForm from './pages/movement/StockMovementForm';
 import FileUpload from './pages/export/FileUpload';
 import DataTable from './pages/export/DataTable';
 function App() {

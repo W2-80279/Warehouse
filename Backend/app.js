@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+const path = require('path');
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 const authRoutes = require('./routes/auth');
 const categoryRoutes = require('./routes/categoryRoutes');
@@ -17,6 +21,7 @@ const fileRoutes = require('./routes/fileRoutes'); // Import file routes
 
 const { sequelize } = require('./config/db'); // Import the Sequelize instance
 const FileMetadata = require('./models/fileMetadata'); // Import the FileMetadata model
+const Item = require('./models/Item');
 require('dotenv').config(); // Load environment variables
 
 // Import models and associations
@@ -31,8 +36,8 @@ sequelize.sync({ force: false })
     .then(async () => {
         console.log('Database connected and models synchronized.');
         // Sync the FileMetadata model
-        await FileMetadata.sync(); // Ensure metadata table is created
-        console.log('FileMetadata table synchronized.');
+        //  Item.sync(); // Ensure metadata table is created
+        // console.log('FileMetadata taawaitble synchronized.');
     })
     .catch(err => {
         console.error('Error syncing the database:', err);

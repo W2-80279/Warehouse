@@ -1,15 +1,18 @@
-// src/pages/management/RackItemTable.js
 import React, { useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import axios from 'axios';
 import { useRackItemContext } from './RackItemContext'; // Adjust the path as needed
 import EditRackItemModal from './EditRackItemModal'; // Adjust the path as needed
+import StockMovementForm from '../movement/StockMovementForm'; // Import your StockMovementForm component
 
 const RackItemTable = () => {
   const { rackItems, setRackItems } = useRackItemContext();
   const [racks, setRacks] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -47,12 +50,20 @@ const RackItemTable = () => {
     setModalOpen(true);
   };
 
-  const handleSaveEdit = (updatedItem) => {
-    setRackItems(prevItems =>
-      prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
-    );
-    setModalOpen(false);
+  const handleStockMovement = (item) => {
+    setSelectedItem(item);
+    setAnchorEl(null); // Close the menu
   };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleOpenMenu = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const open = Boolean(anchorEl);
 
   return (
     <>
@@ -85,6 +96,16 @@ const RackItemTable = () => {
                 <TableCell>
                   <Button onClick={() => handleEdit(rackItem)} variant="contained" color="primary">Edit</Button>
                   <Button onClick={() => handleDelete(rackItem.rackItemId)} variant="contained" color="secondary">Delete</Button>
+                  <Button onClick={handleOpenMenu} variant="contained">
+                    <MoreVertIcon />
+                  </Button>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={open}
+                    onClose={handleMenuClose}
+                  >
+                    <MenuItem onClick={() => handleStockMovement(rackItem)}>Move Stock</MenuItem>
+                  </Menu>
                 </TableCell>
               </TableRow>
             ))}
@@ -96,7 +117,23 @@ const RackItemTable = () => {
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           rackItem={editingItem}
-          onSave={handleSaveEdit}
+          onSave={(updatedItem) => {
+            setRackItems(prevItems =>
+              prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
+            );
+            setModalOpen(false);
+          }}
+        />
+      )}
+      {selectedItem && (
+        <StockMovementForm
+          open={Boolean(selectedItem)}
+          onClose={() => setSelectedItem(null)}
+          rackItem={selectedItem}
+          onSave={() => {
+            // Refresh the rackItems or any other necessary updates
+            setSelectedItem(null);
+          }}
         />
       )}
     </>

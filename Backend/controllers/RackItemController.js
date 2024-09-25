@@ -10,7 +10,7 @@ exports.getAllRackItems = async (req, res) => {
         });
         res.status(200).json(rackItems);
     } catch (error) {
-        console.error('Error fetching rack items:', error); // Detailed logging
+        console.error('Error fetching rack items:', error);
         res.status(500).json({ message: 'Error fetching rack items', error });
     }
 };
@@ -19,31 +19,47 @@ exports.getAllRackItems = async (req, res) => {
 exports.getRackItemById = async (req, res) => {
     try {
         const rackItem = await RackItem.findByPk(req.params.id, {
-            include: [Item, RackSlot] // Include associated models
+            include: [Item, RackSlot]
         });
         if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
         res.status(200).json(rackItem);
     } catch (error) {
-        console.error('Error fetching rack item:', error); // Detailed logging
+        console.error('Error fetching rack item:', error);
         res.status(500).json({ message: 'Error fetching rack item', error });
     }
 };
 
 // Create a new rack item
 exports.createRackItem = async (req, res) => {
-    const { itemId, rackSlotId, quantityStored, dateStored, labelGenerated, materialCode } = req.body;
+    const { itemId, rackSlotId, quantityStored, materialCode } = req.body;
+
     try {
+        // Check if the rack slot exists
+        const rackSlot = await RackSlot.findByPk(rackSlotId);
+        if (!rackSlot) return res.status(404).json({ message: 'Rack slot not found' });
+
+        // Check if there's enough space in the slot
+        if (rackSlot.currentCapacity < quantityStored) {
+            return res.status(400).json({ message: 'Not enough space in the slot' });
+        }
+
+        // Insert the item into the slot
         const newRackItem = await RackItem.create({
             itemId,
             rackSlotId,
             quantityStored,
-            dateStored,
-            labelGenerated,
-            materialCode
+            materialCode,
+            dateStored: new Date() // Use current date
         });
+
+        // Update the slot capacity
+        await rackSlot.update({
+            currentCapacity: rackSlot.currentCapacity - quantityStored
+        });
+
         res.status(201).json(newRackItem);
     } catch (error) {
-        console.error('Error creating rack item:', error); // Detailed logging
+        console.error('Error creating rack item:', error);
         res.status(500).json({ message: 'Error creating rack item', error });
     }
 };
@@ -54,18 +70,19 @@ exports.updateRackItem = async (req, res) => {
         const rackItem = await RackItem.findByPk(req.params.id);
         if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
         
-        const { itemId, rackSlotId, quantityStored, dateStored, labelGenerated, materialCode } = req.body;
+        const { itemId, rackSlotId, quantityStored, materialCode } = req.body;
+
+        // Update the rack item
         await rackItem.update({
             itemId,
             rackSlotId,
             quantityStored,
-            dateStored,
-            labelGenerated,
             materialCode
         });
+
         res.status(200).json(rackItem);
     } catch (error) {
-        console.error('Error updating rack item:', error); // Detailed logging
+        console.error('Error updating rack item:', error);
         res.status(500).json({ message: 'Error updating rack item', error });
     }
 };
@@ -76,45 +93,56 @@ exports.deleteRackItem = async (req, res) => {
         const rackItem = await RackItem.findByPk(req.params.id);
         if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
 
+        // Update the associated rack slot's current capacity
+        const rackSlot = await RackSlot.findByPk(rackItem.rackSlotId);
+        await rackSlot.update({
+            currentCapacity: rackSlot.currentCapacity + rackItem.quantityStored
+        });
+
         await rackItem.destroy();
         res.status(204).json({ message: 'Rack item deleted successfully' });
     } catch (error) {
-        console.error('Error deleting rack item:', error); // Detailed logging
+        console.error('Error deleting rack item:', error);
         res.status(500).json({ message: 'Error deleting rack item', error });
     }
 };
 
-// Insert item into rack slot if space is available
-exports.insertItemIntoSlot = async (req, res) => {
-    const { itemId, rackSlotId, quantityStored, materialCode } = req.body;
+// Move a rack item to another slot
+exports.moveRackItem = async (req, res) => {
+    const { rackItemId, targetRackSlotId, quantityToMove } = req.body;
 
     try {
-        // Check if there's enough space in the slot
-        const rackSlot = await RackSlot.findByPk(rackSlotId);
-        if (!rackSlot) return res.status(404).json({ message: 'Rack slot not found' });
+        const rackItem = await RackItem.findByPk(rackItemId);
+        if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
 
-        if (rackSlot.currentCapacity < quantityStored) {
-            return res.status(400).json({ message: 'Not enough space in the slot' });
+        const targetSlot = await RackSlot.findByPk(targetRackSlotId);
+        if (!targetSlot) return res.status(404).json({ message: 'Target rack slot not found' });
+
+        // Check if target slot has enough capacity
+        if (targetSlot.currentCapacity < quantityToMove) {
+            return res.status(400).json({ message: 'Not enough space in the target slot' });
         }
 
-        // Insert the item into the slot
-        const newRackItem = await RackItem.create({
-            itemId,
-            rackSlotId,
-            quantityStored,
-            dateStored: new Date(), // Use current date
-            labelGenerated: false, // Adjust as needed
-            materialCode
+        // Update source slot
+        const sourceSlot = await RackSlot.findByPk(rackItem.rackSlotId);
+        await sourceSlot.update({
+            currentCapacity: sourceSlot.currentCapacity + quantityToMove
         });
 
-        // Update the slot capacity
-        await rackSlot.update({
-            currentCapacity: rackSlot.currentCapacity - quantityStored
+        // Update target slot
+        await targetSlot.update({
+            currentCapacity: targetSlot.currentCapacity - quantityToMove
         });
 
-        res.status(201).json(newRackItem);
+        // Update the rack item with the new slot and quantity
+        await rackItem.update({
+            rackSlotId: targetRackSlotId,
+            quantityStored: rackItem.quantityStored - quantityToMove
+        });
+
+        res.status(200).json({ message: 'Rack item moved successfully' });
     } catch (error) {
-        console.error('Error inserting item into rack slot:', error); // Detailed logging
-        res.status(500).json({ message: 'Error inserting item into rack slot', error });
+        console.error('Error moving rack item:', error);
+        res.status(500).json({ message: 'Error moving rack item', error });
     }
 };

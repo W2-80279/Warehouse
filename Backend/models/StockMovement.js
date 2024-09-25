@@ -1,4 +1,4 @@
-const {  DataTypes } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const Item = require('./Item');
 const RackSlot = require('./RackSlot');
@@ -15,7 +15,8 @@ const StockMovement = sequelize.define('StockMovement', {
         references: {
             model: Item,
             key: 'itemId'
-        }
+        },
+        allowNull: false
     },
     fromRackId: {
         type: DataTypes.INTEGER,
@@ -25,12 +26,12 @@ const StockMovement = sequelize.define('StockMovement', {
             key: 'rackId'
         }
     },
-    fromSlotLabel: {
-        type: DataTypes.STRING(10),
+    fromSlotId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
             model: RackSlot,
-            key: 'slotLabel'
+            key: 'id'
         }
     },
     toRackId: {
@@ -41,12 +42,12 @@ const StockMovement = sequelize.define('StockMovement', {
             key: 'rackId'
         }
     },
-    toSlotLabel: {
-        type: DataTypes.STRING(10),
+    toSlotId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
             model: RackSlot,
-            key: 'slotLabel'
+            key: 'id'
         }
     },
     quantity: {
@@ -55,35 +56,41 @@ const StockMovement = sequelize.define('StockMovement', {
     },
     movementDate: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     },
     movedBy: {
         type: DataTypes.INTEGER,
         references: {
             model: User,
             key: 'userId'
-        }
+        },
+        allowNull: false
     }
 }, {
-    timestamps: false
+    timestamps: true // Enable timestamps for auditing purposes
 });
 
 // Define associations
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'fromRackId',
-    targetKey: 'rackId'
+    targetKey: 'rackId',
+    as: 'fromRack'
 });
 StockMovement.belongsTo(RackSlot, {
-    foreignKey: 'fromSlotLabel',
-    targetKey: 'slotLabel'
+    foreignKey: 'fromSlotId',
+    targetKey: 'id',
+    as: 'fromSlot'
 });
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'toRackId',
-    targetKey: 'rackId'
+    targetKey: 'rackId',
+    as: 'toRack'
 });
 StockMovement.belongsTo(RackSlot, {
-    foreignKey: 'toSlotLabel',
-    targetKey: 'slotLabel'
+    foreignKey: 'toSlotId',
+    targetKey: 'id',
+    as: 'toSlot'
 });
 StockMovement.belongsTo(Item, {
     foreignKey: 'itemId',

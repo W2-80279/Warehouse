@@ -18,14 +18,13 @@ import {
 import axios from 'axios';
 import AddIcon from '@mui/icons-material/Add';
 import { useRackItemContext } from './RackItemContext';
- // Import context hook
 import RackItemTable from './RackItemTable';
 
 const RackItemForm = () => {
   const { setRackItems } = useRackItemContext(); // Use context hook
 
   const [racks, setRacks] = useState([]);
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]); // Adjusted to fetch items correctly
   const [slots, setSlots] = useState([]);
   const [selectedRack, setSelectedRack] = useState('');
   const [selectedItem, setSelectedItem] = useState('');
@@ -55,7 +54,7 @@ const RackItemForm = () => {
         })
       ]);
       setRacks(racksResponse.data);
-      setItems(itemsResponse.data);
+      setItems(itemsResponse.data.items); // Ensure this correctly accesses items
       setSlots(slotsResponse.data);
     } catch (error) {
       console.error('Error fetching data', error);
@@ -222,7 +221,7 @@ const RackItemForm = () => {
               >
                 {items.map((item) => (
                   <MenuItem key={item.itemId} value={item.itemId}>
-                    {item.name}
+                    {item.name} {/* Correctly displaying item names */}
                   </MenuItem>
                 ))}
               </Select>
@@ -286,122 +285,13 @@ const RackItemForm = () => {
             <Button onClick={handleCloseDialog} color="primary">
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              color="primary"
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Submit'}
+            <Button onClick={handleSubmit} color="primary" disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : 'Add'}
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* Edit Dialog */}
-        <Dialog open={openEditDialog} onClose={handleCloseEditDialog}>
-          <DialogTitle>Edit Rack Item</DialogTitle>
-          <DialogContent>
-            {/* Form Controls for Editing Rack Item */}
-            {/* Similar to the Add Dialog but pre-filled with existing data */}
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Rack</InputLabel>
-              <Select
-                value={selectedRack}
-                onChange={(e) => setSelectedRack(e.target.value)}
-                label="Rack"
-              >
-                {racks.map((rack) => (
-                  <MenuItem key={rack.rackId} value={rack.rackId}>
-                    {rack.rackCode}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Item</InputLabel>
-              <Select
-                value={selectedItem}
-                onChange={(e) => setSelectedItem(e.target.value)}
-                label="Item"
-              >
-                {items.map((item) => (
-                  <MenuItem key={item.itemId} value={item.itemId}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Slot</InputLabel>
-              <Select
-                value={selectedSlot}
-                onChange={(e) => setSelectedSlot(e.target.value)}
-                label="Slot"
-              >
-                {filteredSlots.map((slot) => (
-                  <MenuItem key={slot.id} value={slot.id}>
-                    {slot.slotLabel}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label="Quantity Stored"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              fullWidth
-              margin="dense"
-            />
-
-            <TextField
-              label="Date Stored"
-              type="date"
-              value={dateStored}
-              onChange={(e) => setDateStored(e.target.value)}
-              fullWidth
-              margin="dense"
-              InputLabelProps={{ shrink: true }}
-            />
-
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Label Generated</InputLabel>
-              <Select
-                value={labelGenerated}
-                onChange={(e) => setLabelGenerated(e.target.value === 'true')}
-                label="Label Generated"
-              >
-                <MenuItem value={false}>No</MenuItem>
-                <MenuItem value={true}>Yes</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              label="Material Code"
-              value={materialCode}
-              onChange={(e) => setMaterialCode(e.target.value)}
-              fullWidth
-              margin="dense"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseEditDialog} color="primary">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEdit}
-              color="primary"
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Save'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-        <Box>
-        <RackItemTable /> {/* Ensure this is the correct usage */}
-      </Box>
+        <RackItemTable onEdit={handleOpenEditDialog} onDelete={handleDelete} />
       </Box>
     </Box>
   );

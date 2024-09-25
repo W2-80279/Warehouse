@@ -9,16 +9,28 @@ const Rack = sequelize.define('Rack', {
         autoIncrement: true
     },
     rackCode: {
-        type: DataTypes.STRING(50)
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        unique: true
     },
     description: {
-        type: DataTypes.TEXT
+        type: DataTypes.TEXT,
+        allowNull: true
     },
     capacity: {
-        type: DataTypes.INTEGER
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        validate: {
+            min: 1 // Ensure capacity is positive
+        }
+    },
+    isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
-    timestamps: false
+    timestamps: true,
+    tableName: 'Racks'
 });
 
 module.exports = Rack;
