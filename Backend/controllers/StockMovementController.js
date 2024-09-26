@@ -11,93 +11,50 @@ const calculateAvailableQuantity = async (fromRackItem, toRackSlot) => {
     return Math.min(availableInSource, availableInTarget); // Return the minimum of both
 };
 
+// Move items between slots and adjust current capacity
 exports.createStockMovement = async (req, res) => {
     const { rackItemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity, movementDate, movedBy } = req.body;
 
-    console.log("Received Stock Movement Request: ", req.body);
-
     const transaction = await sequelize.transaction();
     try {
-        // Validate quantity
+        // Validate the quantity to be moved
         const parsedQuantity = Number(quantity);
         if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
             return res.status(400).json({ error: 'Quantity must be a positive valid number' });
         }
 
-        // Find the RackItem in the source slot
-        const fromRackItem = await RackItem.findOne({
-            where: { rackItemId, rackSlotId: fromSlotId },
-            transaction
-        });
+        // Fetch the rack items in the source slot and target slot
+        const fromRackItem = await RackItem.findOne({ where: { rackItemId, rackSlotId: fromSlotId }, transaction });
+        if (!fromRackItem) return res.status(404).json({ error: 'Rack item not found in source slot' });
 
-        if (!fromRackItem) {
-            console.log(`Rack item not found in the source slot (rackItemId: ${rackItemId}, fromSlotId: ${fromSlotId})`);
-            return res.status(404).json({ error: 'Rack item not found in the source slot' });
-        }
-
-        // Fetch the target rack slot
         const toRackSlot = await RackSlot.findByPk(toSlotId, { transaction });
-        if (!toRackSlot) {
-            console.log(`Target slot not found (toSlotId: ${toSlotId})`);
-            return res.status(404).json({ error: 'Target slot not found' });
-        }
+        if (!toRackSlot) return res.status(404).json({ error: 'Target slot not found' });
 
-        // Calculate available quantity for movement
-        const availableQuantity = await calculateAvailableQuantity(fromRackItem, toRackSlot);
-        console.log(`Available quantity for movement: ${availableQuantity}`);
-
-        // If requested quantity exceeds available, return error
-        if (parsedQuantity > availableQuantity) {
-            return res.status(400).json({ error: `Requested quantity exceeds available quantity. Available: ${availableQuantity}` });
-        }
-
-        // Fetch and log source slot
         const fromRackSlot = await RackSlot.findByPk(fromSlotId, { transaction });
-        if (!fromRackSlot) {
-            console.log(`Source slot not found (fromSlotId: ${fromSlotId})`);
-            return res.status(404).json({ error: 'Source slot not found' });
+        if (!fromRackSlot) return res.status(404).json({ error: 'Source slot not found' });
+
+        // Check if target slot has enough space for the quantity
+        if (toRackSlot.capacity - toRackSlot.currentCapacity < parsedQuantity) {
+            return res.status(400).json({ error: 'Not enough space in the target slot' });
         }
 
-        // Update current capacities
-        fromRackSlot.currentCapacity -= parsedQuantity; // Decrease capacity of source slot
-        toRackSlot.currentCapacity += parsedQuantity;   // Increase capacity of target slot
+        // Adjust the current capacities of the source and target slots
+        fromRackSlot.currentCapacity += parsedQuantity;  // Increase available space in source slot
+        toRackSlot.currentCapacity -= parsedQuantity;    // Decrease available space in target slot
 
         await Promise.all([fromRackSlot.save({ transaction }), toRackSlot.save({ transaction })]);
 
-        // Create the stock movement record
-        const stockMovement = await StockMovement.create({
-            rackItemId,
-            fromRackId,
-            fromSlotId,
-            toRackId,
-            toSlotId,
-            quantity: parsedQuantity,
-            movementDate,
-            movedBy
-        }, { transaction });
-
-        console.log(`Stock movement recorded: `, stockMovement);
-
-        // Update the quantity in the source rack item
+        // Update rack items in source and target slots
         fromRackItem.quantityStored -= parsedQuantity;
-        console.log(`Updating fromRackItem quantity. New quantity: ${fromRackItem.quantityStored}`);
         if (fromRackItem.quantityStored <= 0) {
-            await fromRackItem.destroy({ transaction }); // Delete if quantity is zero
-            console.log(`Rack item destroyed as quantity is zero (rackItemId: ${rackItemId})`);
+            await fromRackItem.destroy({ transaction }); // Remove item if it's empty
         } else {
             await fromRackItem.save({ transaction });
         }
 
-        // Check if an item already exists in the target slot
-        let toRackItem = await RackItem.findOne({
-            where: { itemId: fromRackItem.itemId, rackSlotId: toSlotId },
-            transaction
-        });
-
+        let toRackItem = await RackItem.findOne({ where: { itemId: fromRackItem.itemId, rackSlotId: toSlotId }, transaction });
         if (toRackItem) {
-            // If the item exists, update the quantity
-            toRackItem.quantityStored += parsedQuantity;
-            console.log(`Updated existing rack item in target slot. New quantity: ${toRackItem.quantityStored}`);
+            toRackItem.quantityStored += parsedQuantity; // Update quantity if already exists
             await toRackItem.save({ transaction });
         } else {
             // Create a new rack item in the target slot
@@ -109,18 +66,16 @@ exports.createStockMovement = async (req, res) => {
                 labelGenerated: fromRackItem.labelGenerated,
                 materialCode: fromRackItem.materialCode
             }, { transaction });
-            console.log(`Created new rack item in target slot (toSlotId: ${toSlotId})`);
         }
 
         await transaction.commit();
-        res.status(201).json(stockMovement);
+        res.status(201).json({ message: 'Stock movement successful' });
     } catch (error) {
-        console.error("Error during stock movement:", error);
-        await transaction.rollback(); // Rollback the transaction on error
+        await transaction.rollback();
+        console.error('Error during stock movement:', error);
         res.status(500).json({ message: 'Error during stock movement', error: error.message });
     }
 };
-
 
 // Update an existing stock movement
 exports.updateStockMovement = async (req, res) => {
@@ -128,21 +83,60 @@ exports.updateStockMovement = async (req, res) => {
 
     console.log("Update Stock Movement Request Body:", req.body);
 
+    const transaction = await sequelize.transaction(); // Start a transaction
     try {
-        const movement = await StockMovement.findByPk(req.params.id);
+        const movement = await StockMovement.findByPk(req.params.id, { transaction });
 
         if (!movement) {
             return res.status(404).json({ error: 'Stock movement not found' });
         }
 
-        // Update the stock movement with new details
-        Object.assign(movement, { rackItemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity, movementDate, movedBy });
-        await movement.save();
+        // Reverse the original quantity moved before applying the update
+        const fromRackSlot = await RackSlot.findByPk(movement.fromSlotId, { transaction });
+        const toRackSlot = await RackSlot.findByPk(movement.toSlotId, { transaction });
 
+        // Ensure both slots are found
+        if (!fromRackSlot || !toRackSlot) {
+            await transaction.rollback();
+            return res.status(404).json({ error: 'Source or target slot not found' });
+        }
+
+        // Revert the old movement (restore the original quantities)
+        fromRackSlot.currentCapacity += movement.quantity;  // Add back to source
+        toRackSlot.currentCapacity -= movement.quantity;    // Subtract from target
+
+        // Save the reverted state of the slots
+        await Promise.all([fromRackSlot.save({ transaction }), toRackSlot.save({ transaction })]);
+
+        // Validate the new quantity
+        const parsedQuantity = Number(quantity);
+        if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: 'Quantity must be a positive valid number' });
+        }
+
+        // Ensure new movement does not exceed slot capacities
+        if (fromRackSlot.currentCapacity - parsedQuantity < 0 || toRackSlot.currentCapacity + parsedQuantity > toRackSlot.capacity) {
+            await transaction.rollback();
+            return res.status(400).json({ error: 'Invalid quantity, exceeds slot capacities' });
+        }
+
+        // Update with the new movement details and quantities
+        Object.assign(movement, { rackItemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity: parsedQuantity, movementDate, movedBy });
+
+        // Apply the new movement to update the capacities again
+        fromRackSlot.currentCapacity -= parsedQuantity;  // Decrease from source
+        toRackSlot.currentCapacity += parsedQuantity;    // Increase in target
+
+        // Save the updated slots and movement
+        await Promise.all([fromRackSlot.save({ transaction }), toRackSlot.save({ transaction }), movement.save({ transaction })]);
+
+        await transaction.commit();
         console.log(`Stock movement updated successfully (id: ${req.params.id})`);
         res.status(200).json({ message: 'Stock movement updated successfully' });
     } catch (error) {
         console.error('Error updating stock movement:', error.message);
+        await transaction.rollback();
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
@@ -210,13 +204,10 @@ exports.getAvailableQuantity = async (req, res) => {
         const toRackSlot = await RackSlot.findByPk(toSlotId);
 
         if (!fromRackItem || !toRackSlot) {
-            console.log(`Rack item or target slot not found (rackItemId: ${rackItemId}, fromSlotId: ${fromSlotId}, toSlotId: ${toSlotId})`);
-            return res.status(404).json({ error: 'Rack item or target slot not found' });
+            return res.status(404).json({ error: 'Rack item or slot not found' });
         }
 
         const availableQuantity = await calculateAvailableQuantity(fromRackItem, toRackSlot);
-        console.log(`Available quantity for movement (rackItemId: ${rackItemId}): ${availableQuantity}`);
-
         res.status(200).json({ availableQuantity });
     } catch (error) {
         console.error('Error fetching available quantity:', error.message);

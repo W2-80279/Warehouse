@@ -1,3 +1,4 @@
+// src/movement/StockMovementForm.js
 import React, { useEffect, useState } from 'react';
 import {
   Dialog,
@@ -20,12 +21,20 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
   const [toRackId, setToRackId] = useState('');
   const [toSlotLabel, setToSlotLabel] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [availableQuantity, setAvailableQuantity] = useState(0); // To hold the available quantity
+  const [availableQuantity, setAvailableQuantity] = useState(0);
   const [racks, setRacks] = useState([]);
   const [slots, setSlots] = useState([]);
   const [allSlots, setAllSlots] = useState([]);
   const token = localStorage.getItem('token');
   const userId = 1; // Replace with the actual user ID if available.
+
+  // Debug: Log incoming props
+  useEffect(() => {
+    console.log("Selected Item:", selectedItem);
+    console.log("From Rack ID:", fromRackId);
+    console.log("From Slot Label:", fromSlotLabel);
+    console.log("From Slot ID:", fromSlotId);
+  }, [selectedItem, fromRackId, fromSlotLabel, fromSlotId]);
 
   // Fetch racks and slots
   useEffect(() => {
@@ -34,7 +43,7 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
         const response = await axios.get('http://localhost:5000/api/racks', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Fetched Racks:", response.data); // Debugging log
+        console.log("Fetched Racks:", response.data);
         setRacks(response.data);
       } catch (error) {
         console.error('Error fetching racks:', error);
@@ -50,7 +59,7 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
         const response = await axios.get('http://localhost:5000/api/rack-slots', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Fetched Slots:", response.data); // Debugging log
+        console.log("Fetched Slots:", response.data);
         setAllSlots(response.data);
       } catch (error) {
         console.error('Error fetching slots:', error);
@@ -64,7 +73,7 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
   useEffect(() => {
     if (toRackId) {
       const filteredSlots = allSlots.filter(slot => slot.rackId === toRackId);
-      console.log("Filtered Slots:", filteredSlots); // Debugging log
+      console.log("Filtered Slots:", filteredSlots);
       setSlots(filteredSlots);
     } else {
       setSlots([]);
@@ -74,43 +83,39 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
   // Set available quantity based on the selected item
   useEffect(() => {
     if (selectedItem) {
-      setAvailableQuantity(selectedItem.quantity); // Adjust this to match the property for the quantity in your data
+      setAvailableQuantity(selectedItem.quantityStored || 0); // Ensure this matches your data structure
     }
   }, [selectedItem]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Find the target slot based on the selected slot label
     const targetSlot = slots.find(slot => slot.slotLabel === toSlotLabel);
-    
     if (!targetSlot) {
       console.error('Target slot not found');
       return;
     }
 
-    // Prepare the movement data
     const movementData = {
-      rackItemId: selectedItem.rackItemId, // Automatically fetch the rackItemId from selectedItem
+      rackItemId: selectedItem.rackItemId,
       fromRackId: fromRackId,
       fromSlotId: fromSlotId,
       toRackId: toRackId,
-      toSlotId: targetSlot.id, // Use the actual ID from the selected slot
+      toSlotId: targetSlot.id,
       quantity: quantity,
       movementDate: new Date().toISOString(),
-      movedBy: userId, // Ensure this is your actual user ID
+      movedBy: userId,
     };
 
     try {
       const response = await axios.post('http://localhost:5000/api/stock-movements', movementData, {
         headers: {
-          'Authorization': `Bearer ${token}`, // Add your token here
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         }
       });
       console.log('Stock moved successfully', response.data);
-      // Optionally, reset the form or update the context here
-      onClose(); // Close the dialog after successful submission
+      onClose();
     } catch (error) {
       console.error('Error moving stock:', error.response?.data || error);
     }
@@ -179,7 +184,7 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
             onChange={(e) => setQuantity(e.target.value)}
             fullWidth
             required
-            inputProps={{ min: 1, max: availableQuantity }} // Set max to available quantity
+            inputProps={{ min: 1, max: availableQuantity }} 
           />
           <DialogActions>
             <Button onClick={onClose} color="primary">

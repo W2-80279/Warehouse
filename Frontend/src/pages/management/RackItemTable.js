@@ -79,7 +79,7 @@ const RackItemTable = () => {
   const open = Boolean(anchorEl);
 
   const handleStockMovementSave = async (updatedItem) => {
-    // Update rack items state with the new stock movement data
+    // Update the rack items state with the new stock movement data
     setRackItems(prevItems =>
       prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
     );
@@ -156,6 +156,7 @@ const RackItemTable = () => {
           fromRackId={selectedItem.RackSlot?.rackId} // Pass the correct rack ID
           fromSlotLabel={selectedItem.RackSlot?.slotLabel} // Pass the correct slot label
           fromSlotId={selectedItem.RackSlot?.id} // Ensure the correct slot ID is passed
+          onStockMovementSave={handleStockMovementSave} // Pass save function
         />
       )}
     </>

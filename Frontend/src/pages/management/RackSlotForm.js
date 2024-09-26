@@ -218,7 +218,7 @@ const RackSlotForm = () => {
               <TableCell>Rack Code</TableCell>
               <TableCell>Slot Label</TableCell>
               <TableCell>Slot Capacity</TableCell>
-              <TableCell>Current Capacity</TableCell>
+              <TableCell>Available Capacity</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>

@@ -6,7 +6,7 @@ const {
     createRackItem,
     updateRackItem,
     deleteRackItem,
-    moveRackItem // Import the move function
+    // moveRackItem // Import the move function
 } = require('../controllers/RackItemController');
 const { auth, authorize } = require('../middleware/auth');
 
@@ -18,6 +18,6 @@ router.put('/:id', auth, authorize([1]), updateRackItem); // Admin only
 router.delete('/:id', auth, authorize([1]), deleteRackItem); // Admin only
 
 // New route for stock movement
-router.post('/move', auth, authorize([1]), moveRackItem); // Admin only
+// router.post('/move', auth, authorize([1]), moveRackItem); // Admin only
 
 module.exports = router;
