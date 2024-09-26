@@ -35,6 +35,11 @@ exports.createRackSlot = async (req, res) => {
         return res.status(400).json({ message: 'Rack ID, slot label, slot capacity, and current capacity are required' });
     }
 
+    // Validate current capacity does not exceed slot capacity
+    if (currentCapacity > slotCapacity) {
+        return res.status(400).json({ message: 'Current capacity cannot exceed slot capacity' });
+    }
+
     try {
         const rack = await Rack.findByPk(rackId);
         if (!rack) return res.status(404).json({ message: 'Rack not found' });
@@ -48,7 +53,7 @@ exports.createRackSlot = async (req, res) => {
         // Check if there's enough capacity to allocate the new slot
         if (remainingCapacity < slotCapacity) {
             return res.status(400).json({ 
-                message: `Not enough remaining capacity in the rack. Available: ${remainingCapacity}, Required: ${slotCapacity}`
+                message: `Not enough remaining capacity in the rack. Available: ${remainingCapacity}, Required: ${slotCapacity}` 
             });
         }
 
@@ -78,6 +83,11 @@ exports.updateRackSlot = async (req, res) => {
         // Validate input
         if (!rackId || !slotLabel || slotCapacity === undefined || currentCapacity === undefined) {
             return res.status(400).json({ message: 'Rack ID, slot label, slot capacity, and current capacity are required' });
+        }
+
+        // Validate current capacity does not exceed slot capacity
+        if (currentCapacity > slotCapacity) {
+            return res.status(400).json({ message: 'Current capacity cannot exceed slot capacity' });
         }
 
         const rack = await Rack.findByPk(rackId);
@@ -110,7 +120,6 @@ exports.updateRackSlot = async (req, res) => {
 };
 
 // Delete a rack slot
-// Delete a rack slot
 exports.deleteRackSlot = async (req, res) => {
     try {
         const rackSlot = await RackSlot.findByPk(req.params.id);
@@ -127,10 +136,6 @@ exports.deleteRackSlot = async (req, res) => {
         res.status(500).json({ message: 'Error deleting rack slot', error: error.message });
     }
 };
-
-
-
-
 
 // Check slot capacity by RackID and SlotLabel
 exports.checkSlotCapacity = async (req, res) => {

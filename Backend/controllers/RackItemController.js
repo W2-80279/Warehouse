@@ -30,10 +30,16 @@ exports.getRackItemById = async (req, res) => {
 };
 
 // Create a new rack item
+
 exports.createRackItem = async (req, res) => {
     const { itemId, rackSlotId, quantityStored, materialCode } = req.body;
 
     try {
+        // Validate quantityStored
+        if (typeof quantityStored !== 'number' || quantityStored <= 0) {
+            return res.status(400).json({ message: 'quantityStored must be a positive integer.' });
+        }
+
         // Check if the rack slot exists
         const rackSlot = await RackSlot.findByPk(rackSlotId);
         if (!rackSlot) return res.status(404).json({ message: 'Rack slot not found' });
@@ -63,6 +69,7 @@ exports.createRackItem = async (req, res) => {
         res.status(500).json({ message: 'Error creating rack item', error });
     }
 };
+
 
 // Update a rack item
 exports.updateRackItem = async (req, res) => {

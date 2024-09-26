@@ -21,10 +21,9 @@ import { useRackItemContext } from './RackItemContext';
 import RackItemTable from './RackItemTable';
 
 const RackItemForm = () => {
-  const { setRackItems } = useRackItemContext(); // Use context hook
-
+  const { setRackItems } = useRackItemContext();
   const [racks, setRacks] = useState([]);
-  const [items, setItems] = useState([]); // Adjusted to fetch items correctly
+  const [items, setItems] = useState([]);
   const [slots, setSlots] = useState([]);
   const [selectedRack, setSelectedRack] = useState('');
   const [selectedItem, setSelectedItem] = useState('');
@@ -37,7 +36,6 @@ const RackItemForm = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [openEditDialog, setOpenEditDialog] = useState(false);
-
   const token = localStorage.getItem('token');
 
   const fetchData = async () => {
@@ -54,7 +52,7 @@ const RackItemForm = () => {
         })
       ]);
       setRacks(racksResponse.data);
-      setItems(itemsResponse.data.items); // Ensure this correctly accesses items
+      setItems(itemsResponse.data.items);
       setSlots(slotsResponse.data);
     } catch (error) {
       console.error('Error fetching data', error);
@@ -68,25 +66,33 @@ const RackItemForm = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      if (!selectedItem || !selectedSlot || quantity <= 0) {
+        alert('Please fill all required fields and ensure quantity is positive.');
+        return;
+      }
+
+      const quantityNumber = Number(quantity);
+
       await axios.post('http://localhost:5000/api/rack-items', {
         itemId: selectedItem,
         rackSlotId: selectedSlot,
-        quantityStored: quantity,
+        quantityStored: quantityNumber,
         dateStored,
         labelGenerated,
         materialCode
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
       alert('Rack item added successfully!');
       const response = await axios.get('http://localhost:5000/api/rack-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setRackItems(response.data); // Update context with new rack items
+      setRackItems(response.data);
       handleCloseDialog();
     } catch (error) {
-      console.error('Error adding rack item', error);
-      alert('Error adding rack item');
+      console.error('Error adding rack item:', error);
+      alert(error.response?.data?.message || 'Error adding rack item');
     } finally {
       setLoading(false);
     }
@@ -110,7 +116,7 @@ const RackItemForm = () => {
       const response = await axios.get('http://localhost:5000/api/rack-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setRackItems(response.data); // Update context with edited rack items
+      setRackItems(response.data);
       handleCloseEditDialog();
     } catch (error) {
       console.error('Error updating rack item', error);
@@ -130,7 +136,7 @@ const RackItemForm = () => {
       const response = await axios.get('http://localhost:5000/api/rack-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setRackItems(response.data); // Update context with remaining rack items
+      setRackItems(response.data);
     } catch (error) {
       console.error('Error deleting rack item', error);
       alert('Error deleting rack item');
@@ -196,7 +202,6 @@ const RackItemForm = () => {
         <Dialog open={openDialog} onClose={handleCloseDialog}>
           <DialogTitle>Add Rack Item</DialogTitle>
           <DialogContent>
-            {/* Form Controls for Adding Rack Item */}
             <FormControl fullWidth margin="dense">
               <InputLabel>Rack</InputLabel>
               <Select
@@ -221,7 +226,7 @@ const RackItemForm = () => {
               >
                 {items.map((item) => (
                   <MenuItem key={item.itemId} value={item.itemId}>
-                    {item.name} {/* Correctly displaying item names */}
+                    {item.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -282,15 +287,14 @@ const RackItemForm = () => {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog} color="primary">
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} color="primary" disabled={loading}>
+            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={loading}>
               {loading ? <CircularProgress size={24} /> : 'Add'}
             </Button>
           </DialogActions>
         </Dialog>
 
+        {/* Render your RackItemTable here */}
         <RackItemTable onEdit={handleOpenEditDialog} onDelete={handleDelete} />
       </Box>
     </Box>

@@ -1,153 +1,197 @@
-import React, { useState, useEffect } from 'react';
-import { TextField, Button, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Typography,
+} from '@mui/material';
 import axios from 'axios';
+import { useRackItemContext } from './RackItemContext';
 
-const StockMovementForm = () => {
-  const [items, setItems] = useState([]);
-  const [selectedItem, setSelectedItem] = useState('');
-  const [fromRack, setFromRack] = useState('');
-  const [fromSlot, setFromSlot] = useState('');
-  const [toRack, setToRack] = useState('');
-  const [toSlot, setToSlot] = useState('');
-  const [quantity, setQuantity] = useState(0);
+const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLabel, fromSlotId }) => {
+  const { setRackItems } = useRackItemContext();
+  const [toRackId, setToRackId] = useState('');
+  const [toSlotLabel, setToSlotLabel] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [availableQuantity, setAvailableQuantity] = useState(0); // To hold the available quantity
+  const [racks, setRacks] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const [allSlots, setAllSlots] = useState([]);
+  const token = localStorage.getItem('token');
+  const userId = 1; // Replace with the actual user ID if available.
 
-  // Fetch items from the API
+  // Fetch racks and slots
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchRacks = async () => {
       try {
-        const token = localStorage.getItem('token'); // Replace with your method of storing the token
-        const response = await axios.get('http://localhost:5000/api/items', {
-          headers: {
-            Authorization: `Bearer ${token}`, // Add the token to the request headers
-          },
+        const response = await axios.get('http://localhost:5000/api/racks', {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        console.log(response.data); // Log the response to see the structure
-        setItems(response.data.items);
+        console.log("Fetched Racks:", response.data); // Debugging log
+        setRacks(response.data);
       } catch (error) {
-        console.error('Error fetching items:', error);
+        console.error('Error fetching racks:', error);
       }
     };
-    fetchItems();
-  }, []);
 
-  // Fetch item details when an item is selected
-  const handleItemChange = async (event) => {
-    const itemId = event.target.value;
-    setSelectedItem(itemId);
+    fetchRacks();
+  }, [token]);
 
-    if (itemId) {
+  useEffect(() => {
+    const fetchSlots = async () => {
       try {
-        const token = localStorage.getItem('token'); // Ensure the token is included
-        const response = await axios.get(`http://localhost:5000/api/items/${itemId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`, // Add the token to the request headers
-          },
+        const response = await axios.get('http://localhost:5000/api/rack-slots', {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const itemDetails = response.data;
-
-        // Log the entire item details response to see its structure
-        console.log('Selected item details:', itemDetails);
-
-        // Ensure the properties exist before assignment
-        if (itemDetails.currentRackId && itemDetails.currentSlotId) {
-          setFromRack(itemDetails.currentRackId); // Assuming you have currentRackId in item details
-          setFromSlot(itemDetails.currentSlotId); // Assuming you have currentSlotId in item details
-        } else {
-          console.error('currentRackId or currentSlotId is undefined in the item details');
-        }
+        console.log("Fetched Slots:", response.data); // Debugging log
+        setAllSlots(response.data);
       } catch (error) {
-        console.error('Error fetching item details:', error);
+        console.error('Error fetching slots:', error);
       }
+    };
+
+    fetchSlots();
+  }, [token]);
+
+  // Filter slots based on selected rack
+  useEffect(() => {
+    if (toRackId) {
+      const filteredSlots = allSlots.filter(slot => slot.rackId === toRackId);
+      console.log("Filtered Slots:", filteredSlots); // Debugging log
+      setSlots(filteredSlots);
+    } else {
+      setSlots([]);
     }
-  };
+  }, [toRackId, allSlots]);
+
+  // Set available quantity based on the selected item
+  useEffect(() => {
+    if (selectedItem) {
+      setAvailableQuantity(selectedItem.quantity); // Adjust this to match the property for the quantity in your data
+    }
+  }, [selectedItem]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    // Add your submit logic here (send data to the server)
-    console.log({
-      fromRack,
-      fromSlot,
-      toRack,
-      toSlot,
-      quantity,
-    });
+
+    // Find the target slot based on the selected slot label
+    const targetSlot = slots.find(slot => slot.slotLabel === toSlotLabel);
+    
+    if (!targetSlot) {
+      console.error('Target slot not found');
+      return;
+    }
+
+    // Prepare the movement data
+    const movementData = {
+      rackItemId: selectedItem.rackItemId, // Automatically fetch the rackItemId from selectedItem
+      fromRackId: fromRackId,
+      fromSlotId: fromSlotId,
+      toRackId: toRackId,
+      toSlotId: targetSlot.id, // Use the actual ID from the selected slot
+      quantity: quantity,
+      movementDate: new Date().toISOString(),
+      movedBy: userId, // Ensure this is your actual user ID
+    };
+
+    try {
+      const response = await axios.post('http://localhost:5000/api/stock-movements', movementData, {
+        headers: {
+          'Authorization': `Bearer ${token}`, // Add your token here
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('Stock moved successfully', response.data);
+      // Optionally, reset the form or update the context here
+      onClose(); // Close the dialog after successful submission
+    } catch (error) {
+      console.error('Error moving stock:', error.response?.data || error);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <FormControl fullWidth variant="outlined" margin="normal">
-        <InputLabel id="item-select-label">Select Item</InputLabel>
-        <Select
-          labelId="item-select-label"
-          value={selectedItem}
-          onChange={handleItemChange}
-          required
-        >
-          {items.map(item => (
-            <MenuItem key={item.itemId} value={item.itemId}>
-              {item.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      <TextField
-        label="From Rack"
-        value={fromRack}
-        disabled // Make it read-only since it auto-fills
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="From Slot"
-        value={fromSlot}
-        disabled // Make it read-only since it auto-fills
-        fullWidth
-        margin="normal"
-      />
-      
-      <FormControl fullWidth variant="outlined" margin="normal">
-        <InputLabel id="to-rack-select-label">To Rack</InputLabel>
-        <Select
-          labelId="to-rack-select-label"
-          value={toRack}
-          onChange={(e) => setToRack(e.target.value)}
-          required
-        >
-          {/* Populate your rack options here */}
-          <MenuItem value="rack1">Rack 1</MenuItem>
-          <MenuItem value="rack2">Rack 2</MenuItem>
-        </Select>
-      </FormControl>
-
-      <FormControl fullWidth variant="outlined" margin="normal">
-        <InputLabel id="to-slot-select-label">To Slot</InputLabel>
-        <Select
-          labelId="to-slot-select-label"
-          value={toSlot}
-          onChange={(e) => setToSlot(e.target.value)}
-          required
-        >
-          {/* Populate your slot options here */}
-          <MenuItem value="slot1">Slot 1</MenuItem>
-          <MenuItem value="slot2">Slot 2</MenuItem>
-        </Select>
-      </FormControl>
-
-      <TextField
-        label="Quantity"
-        type="number"
-        value={quantity}
-        onChange={(e) => setQuantity(e.target.value)}
-        fullWidth
-        margin="normal"
-        required
-      />
-
-      <Button type="submit" variant="contained" color="primary">
-        Move Stock
-      </Button>
-    </form>
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Move Stock</DialogTitle>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <TextField
+            label="Item Name"
+            value={selectedItem.Item?.name || ''}
+            fullWidth
+            disabled
+          />
+          <TextField
+            label="From Rack"
+            value={fromRackId}
+            fullWidth
+            disabled
+          />
+          <TextField
+            label="From Slot"
+            value={fromSlotLabel}
+            fullWidth
+            disabled
+          />
+          <Typography variant="body1" color="textSecondary" style={{ marginTop: 16 }}>
+            Available Quantity: {availableQuantity}
+          </Typography>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="to-rack-label">To Rack</InputLabel>
+            <Select
+              labelId="to-rack-label"
+              value={toRackId}
+              onChange={(e) => setToRackId(e.target.value)}
+              required
+            >
+              {racks.map((rack) => (
+                <MenuItem key={rack.rackId} value={rack.rackId}>
+                  {rack.rackCode}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="to-slot-label">To Slot</InputLabel>
+            <Select
+              labelId="to-slot-label"
+              value={toSlotLabel}
+              onChange={(e) => setToSlotLabel(e.target.value)}
+              required
+            >
+              {slots.map((slot) => (
+                <MenuItem key={slot.id} value={slot.slotLabel}>
+                  {slot.slotLabel}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            label="Quantity"
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            fullWidth
+            required
+            inputProps={{ min: 1, max: availableQuantity }} // Set max to available quantity
+          />
+          <DialogActions>
+            <Button onClick={onClose} color="primary">
+              Cancel
+            </Button>
+            <Button type="submit" color="primary">
+              Move Stock
+            </Button>
+          </DialogActions>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

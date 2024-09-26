@@ -25,6 +25,7 @@ const Item = require('./models/Item');
 require('dotenv').config(); // Load environment variables
 
 // Import models and associations
+//
 require('./models/associations'); // Ensure associations are set up
 
 // Middleware

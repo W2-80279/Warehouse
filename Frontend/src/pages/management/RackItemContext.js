@@ -1,22 +1,17 @@
-// src/pages/management/RackItemContext.js
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-// Create the context
 const RackItemContext = createContext();
 
-// Provide the context to children components
 export const RackItemProvider = ({ children }) => {
-  const [rackItems, setRackItems] = useState([]);
+    const [rackItems, setRackItems] = useState([]);
 
-  return (
-    <RackItemContext.Provider value={{ rackItems, setRackItems }}>
-      {children}
-    </RackItemContext.Provider>
-  );
+    return (
+        <RackItemContext.Provider value={{ rackItems, setRackItems }}>
+            {children}
+        </RackItemContext.Provider>
+    );
 };
 
-// Custom hook to use the context
-export const useRackItemContext = () => useContext(RackItemContext);
-
-// Export the context itself for use in components
-export { RackItemContext };
+export const useRackItemContext = () => {
+    return useContext(RackItemContext);
+};

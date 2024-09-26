@@ -1,10 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem } from '@mui/material';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Menu,
+  MenuItem,
+} from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import axios from 'axios';
-import { useRackItemContext } from './RackItemContext'; // Adjust the path as needed
-import EditRackItemModal from './EditRackItemModal'; // Adjust the path as needed
-import StockMovementForm from '../movement/StockMovementForm'; // Import your StockMovementForm component
+import { useRackItemContext } from './RackItemContext';
+import EditRackItemModal from './EditRackItemModal';
+import StockMovementForm from '../movement/StockMovementForm';
 
 const RackItemTable = () => {
   const { rackItems, setRackItems } = useRackItemContext();
@@ -22,12 +33,14 @@ const RackItemTable = () => {
           axios.get('http://localhost:5000/api/rack-items', { headers: { Authorization: `Bearer ${token}` } }),
           axios.get('http://localhost:5000/api/racks', { headers: { Authorization: `Bearer ${token}` } })
         ]);
+
         setRackItems(rackItemsResponse.data);
         setRacks(racksResponse.data);
       } catch (error) {
         console.error('Error fetching data', error);
       }
     };
+
     fetchData();
   }, [token, setRackItems]);
 
@@ -52,7 +65,7 @@ const RackItemTable = () => {
 
   const handleStockMovement = (item) => {
     setSelectedItem(item);
-    setAnchorEl(null); // Close the menu
+    setAnchorEl(null);
   };
 
   const handleMenuClose = () => {
@@ -64,6 +77,14 @@ const RackItemTable = () => {
   };
 
   const open = Boolean(anchorEl);
+
+  const handleStockMovementSave = async (updatedItem) => {
+    // Update rack items state with the new stock movement data
+    setRackItems(prevItems =>
+      prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
+    );
+    setSelectedItem(null);
+  };
 
   return (
     <>
@@ -112,6 +133,7 @@ const RackItemTable = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
       {editingItem && (
         <EditRackItemModal
           open={modalOpen}
@@ -125,15 +147,15 @@ const RackItemTable = () => {
           }}
         />
       )}
+
       {selectedItem && (
         <StockMovementForm
           open={Boolean(selectedItem)}
           onClose={() => setSelectedItem(null)}
-          rackItem={selectedItem}
-          onSave={() => {
-            // Refresh the rackItems or any other necessary updates
-            setSelectedItem(null);
-          }}
+          selectedItem={selectedItem}
+          fromRackId={selectedItem.RackSlot?.rackId} // Pass the correct rack ID
+          fromSlotLabel={selectedItem.RackSlot?.slotLabel} // Pass the correct slot label
+          fromSlotId={selectedItem.RackSlot?.id} // Ensure the correct slot ID is passed
         />
       )}
     </>

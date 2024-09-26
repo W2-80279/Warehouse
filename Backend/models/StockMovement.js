@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
-const Item = require('./Item');
 const RackSlot = require('./RackSlot');
+const RackItem = require('./RackItem');
 const User = require('./User');
 
 const StockMovement = sequelize.define('StockMovement', {
@@ -10,11 +10,11 @@ const StockMovement = sequelize.define('StockMovement', {
         primaryKey: true,
         autoIncrement: true
     },
-    itemId: {
+    rackItemId: {
         type: DataTypes.INTEGER,
         references: {
-            model: Item,
-            key: 'itemId'
+            model: RackItem,
+            key: 'rackItemId'
         },
         allowNull: false
     },
@@ -68,33 +68,29 @@ const StockMovement = sequelize.define('StockMovement', {
         allowNull: false
     }
 }, {
-    timestamps: true // Enable timestamps for auditing purposes
+    timestamps: true
 });
 
-// Define associations
+// Define associations without aliases
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'fromRackId',
-    targetKey: 'rackId',
-    as: 'fromRack'
+    targetKey: 'rackId'
 });
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'fromSlotId',
-    targetKey: 'id',
-    as: 'fromSlot'
+    targetKey: 'id'
 });
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'toRackId',
-    targetKey: 'rackId',
-    as: 'toRack'
+    targetKey: 'rackId'
 });
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'toSlotId',
-    targetKey: 'id',
-    as: 'toSlot'
+    targetKey: 'id'
 });
-StockMovement.belongsTo(Item, {
-    foreignKey: 'itemId',
-    targetKey: 'itemId',
+StockMovement.belongsTo(RackItem, {
+    foreignKey: 'rackItemId',
+    targetKey: 'rackItemId',
     onDelete: 'CASCADE'
 });
 StockMovement.belongsTo(User, {

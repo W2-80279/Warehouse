@@ -8,21 +8,18 @@ import ManageItem from './pages/items/ManageItem'; // Ensure this is correctly i
 import RackManagement from './pages/Rackmanagement';
 import CategoryPage from './pages/Category'; // Ensure this is correctly imported
 import SupplierPage from './pages/Supplier'; // Ensure this is correctly imported
-
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';  // Ensure this is correctly imported
+import Layout from './components/Layout'; // Ensure this is correctly imported
 import RackItemForm from './pages/management/RackItemForm';
-
-// Import the context provider
-import { RackItemProvider } from './pages/management/RackItemContext';
+import { RackItemProvider } from './pages/movement/RackItemContext'; // Ensure this is correctly imported
 import RackForm from './pages/management/RackForm';
 import RackSlotForm from './pages/management/RackSlotForm';
 import AdminSidebar from './components/AdminSidebar';
-//import StockMovementList from './pages/management/StockMovementList';
-//import StockMovementPage from './pages/management/StockMovementPage'
 import StockMovementForm from './pages/movement/StockMovementForm';
 import FileUpload from './pages/export/FileUpload';
 import DataTable from './pages/export/DataTable';
+import StockMovementTable from './pages/movement/StockMovementTable';
+
 function App() {
   return (
     <Router>
@@ -142,42 +139,42 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* <Route
-            path="/stock-move"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                <StockMovementPage/>
-                </Layout>
-              </ProtectedRoute>
-            }
-          /> */}
           <Route
             path="/move-list"
             element={
               <ProtectedRoute>
                 <Layout>
-                  <StockMovementForm/>
+                  <StockMovementForm /> {/* This component uses the context */}
                 </Layout>
               </ProtectedRoute>
             }
           />
-           <Route
+          <Route
             path="/export"
             element={
               <ProtectedRoute>
                 <Layout>
-                  <FileUpload/>
+                  <FileUpload />
                 </Layout>
               </ProtectedRoute>
             }
           />
-           <Route
+          <Route
             path="/datatables/:tableName"
             element={
               <ProtectedRoute>
                 <Layout>
                   <DataTable />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/movement-table"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StockMovementTable />
                 </Layout>
               </ProtectedRoute>
             }
