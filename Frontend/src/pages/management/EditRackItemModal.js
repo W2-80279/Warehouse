@@ -4,7 +4,7 @@ import { Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button } 
 import axios from 'axios';
 
 const EditRackItemModal = ({ open, onClose, rackItem, onSave }) => {
-  const [item, setItem] = useState(rackItem);
+  const [item, setItem] = useState({}); // Initialize with an empty object
 
   useEffect(() => {
     // Reset the form when the modal opens with a new rackItem
@@ -19,14 +19,22 @@ const EditRackItemModal = ({ open, onClose, rackItem, onSave }) => {
 
   const handleSave = async () => {
     try {
+      // Ensure quantityStored is a number
+      const updatedItem = {
+        ...item,
+        quantityStored: Number(item.quantityStored), // Ensure it's a number
+      };
+
       // Save the changes to the backend via API call
-      await axios.put(`http://localhost:5000/api/rack-items/${item.rackItemId}`, item, {
+      await axios.put(`http://localhost:5000/api/rack-items/${item.rackItemId}`, updatedItem, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      onSave(item);  // Trigger the save callback to update the table
-      onClose();     // Close the modal after saving
+
+      onSave(updatedItem); // Trigger the save callback to update the table
+      onClose(); // Close the modal after saving
     } catch (error) {
       console.error('Error saving item', error);
+      alert('Error saving item: ' + (error.response?.data?.message || 'An error occurred')); // Provide feedback on error
     }
   };
 
@@ -73,11 +81,18 @@ const EditRackItemModal = ({ open, onClose, rackItem, onSave }) => {
         />
         <TextField
           label="Label Generated"
-          value={item.labelGenerated ? 'Yes' : 'No'}
+          select
+          value={item.labelGenerated ? 'Yes' : 'No'} // Change to select field for better UX
           onChange={(e) => handleChange('labelGenerated', e.target.value === 'Yes')}
           fullWidth
           margin="dense"
-        />
+          SelectProps={{
+            native: true,
+          }}
+        >
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </TextField>
         {/* Add other fields here as necessary */}
       </DialogContent>
       <DialogActions>

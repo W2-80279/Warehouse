@@ -1,4 +1,3 @@
-// src/movement/StockMovementForm.js
 import React, { useEffect, useState } from 'react';
 import {
   Dialog,
@@ -22,19 +21,12 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
   const [toSlotLabel, setToSlotLabel] = useState('');
   const [quantity, setQuantity] = useState('');
   const [availableQuantity, setAvailableQuantity] = useState(0);
+  const [selectedSlotCurrentCapacity, setSelectedSlotCurrentCapacity] = useState(0);
   const [racks, setRacks] = useState([]);
   const [slots, setSlots] = useState([]);
   const [allSlots, setAllSlots] = useState([]);
   const token = localStorage.getItem('token');
   const userId = 1; // Replace with the actual user ID if available.
-
-  // Debug: Log incoming props
-  useEffect(() => {
-    console.log("Selected Item:", selectedItem);
-    console.log("From Rack ID:", fromRackId);
-    console.log("From Slot Label:", fromSlotLabel);
-    console.log("From Slot ID:", fromSlotId);
-  }, [selectedItem, fromRackId, fromSlotLabel, fromSlotId]);
 
   // Fetch racks and slots
   useEffect(() => {
@@ -43,7 +35,6 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
         const response = await axios.get('http://localhost:5000/api/racks', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Fetched Racks:", response.data);
         setRacks(response.data);
       } catch (error) {
         console.error('Error fetching racks:', error);
@@ -59,7 +50,6 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
         const response = await axios.get('http://localhost:5000/api/rack-slots', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Fetched Slots:", response.data);
         setAllSlots(response.data);
       } catch (error) {
         console.error('Error fetching slots:', error);
@@ -69,23 +59,21 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
     fetchSlots();
   }, [token]);
 
-  // Filter slots based on selected rack
-  useEffect(() => {
-    if (toRackId) {
-      const filteredSlots = allSlots.filter(slot => slot.rackId === toRackId);
-      console.log("Filtered Slots:", filteredSlots);
-      setSlots(filteredSlots);
-    } else {
-      setSlots([]);
-    }
-  }, [toRackId, allSlots]);
-
   // Set available quantity based on the selected item
   useEffect(() => {
     if (selectedItem) {
-      setAvailableQuantity(selectedItem.quantityStored || 0); // Ensure this matches your data structure
+      setAvailableQuantity(selectedItem.quantityStored || 0);
     }
   }, [selectedItem]);
+
+  const fetchSlotCurrentCapacity = (rackId, slotLabel) => {
+    const selectedSlot = allSlots.find(slot => slot.rackId === rackId && slot.slotLabel === slotLabel);
+    if (selectedSlot) {
+      setSelectedSlotCurrentCapacity(selectedSlot.currentCapacity);
+    } else {
+      setSelectedSlotCurrentCapacity(0); // Reset if not found
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -152,7 +140,12 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
             <Select
               labelId="to-rack-label"
               value={toRackId}
-              onChange={(e) => setToRackId(e.target.value)}
+              onChange={(e) => {
+                const selectedRackId = e.target.value;
+                setToRackId(selectedRackId);
+                setToSlotLabel(''); // Reset slot label when rack changes
+                setSlots(allSlots.filter(slot => slot.rackId === selectedRackId)); // Filter slots based on selected rack
+              }}
               required
             >
               {racks.map((rack) => (
@@ -167,7 +160,11 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
             <Select
               labelId="to-slot-label"
               value={toSlotLabel}
-              onChange={(e) => setToSlotLabel(e.target.value)}
+              onChange={(e) => {
+                const selectedLabel = e.target.value;
+                setToSlotLabel(selectedLabel);
+                fetchSlotCurrentCapacity(toRackId, selectedLabel); // Pass both rack ID and slot label
+              }}
               required
             >
               {slots.map((slot) => (
@@ -177,6 +174,9 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
               ))}
             </Select>
           </FormControl>
+          <Typography variant="body1" color="textSecondary" style={{ marginTop: 16 }}>
+            Available Slot Capacity: {selectedSlotCurrentCapacity}
+          </Typography>
           <TextField
             label="Quantity"
             type="number"
@@ -184,15 +184,11 @@ const StockMovementForm = ({ open, onClose, selectedItem, fromRackId, fromSlotLa
             onChange={(e) => setQuantity(e.target.value)}
             fullWidth
             required
-            inputProps={{ min: 1, max: availableQuantity }} 
+            inputProps={{ min: 1, max: availableQuantity }} // Limit to available quantity
           />
           <DialogActions>
-            <Button onClick={onClose} color="primary">
-              Cancel
-            </Button>
-            <Button type="submit" color="primary">
-              Move Stock
-            </Button>
+            <Button onClick={onClose} color="secondary">Cancel</Button>
+            <Button type="submit" color="primary">Move Stock</Button>
           </DialogActions>
         </form>
       </DialogContent>

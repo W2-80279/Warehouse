@@ -24,23 +24,24 @@ const RackItemTable = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null); // For MoreVert menu
   const token = localStorage.getItem('token');
 
+  // Fetch rack items and racks
+  const fetchData = async () => {
+    try {
+      const [rackItemsResponse, racksResponse] = await Promise.all([
+        axios.get('http://localhost:5000/api/rack-items/active', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://localhost:5000/api/racks', { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      setRackItems(rackItemsResponse.data);
+      setRacks(racksResponse.data);
+    } catch (error) {
+      console.error('Error fetching data', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [rackItemsResponse, racksResponse] = await Promise.all([
-          axios.get('http://localhost:5000/api/rack-items', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('http://localhost:5000/api/racks', { headers: { Authorization: `Bearer ${token}` } })
-        ]);
-
-        setRackItems(rackItemsResponse.data);
-        setRacks(racksResponse.data);
-      } catch (error) {
-        console.error('Error fetching data', error);
-      }
-    };
-
     fetchData();
   }, [token, setRackItems]);
 
@@ -52,7 +53,7 @@ const RackItemTable = () => {
   const handleDelete = async (id) => {
     try {
       await axios.delete(`http://localhost:5000/api/rack-items/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setRackItems(prevItems => prevItems.filter(item => item.rackItemId !== id));
+      setRackItems((prevItems) => prevItems.filter((item) => item.rackItemId !== id));
     } catch (error) {
       console.error('Error deleting item', error);
     }
@@ -65,25 +66,20 @@ const RackItemTable = () => {
 
   const handleStockMovement = (item) => {
     setSelectedItem(item);
-    setAnchorEl(null);
+  };
+
+  const handleMenuOpen = (event, item) => {
+    setMenuAnchor(event.currentTarget);
+    setSelectedItem(item); // Set selected item when menu is opened
   };
 
   const handleMenuClose = () => {
-    setAnchorEl(null);
+    setMenuAnchor(null);
   };
 
-  const handleOpenMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const open = Boolean(anchorEl);
-
-  const handleStockMovementSave = async (updatedItem) => {
-    // Update the rack items state with the new stock movement data
-    setRackItems(prevItems =>
-      prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
-    );
-    setSelectedItem(null);
+  const handleStockMovementSave = async () => {
+    await fetchData(); // Fetch updated data after stock movement
+    setSelectedItem(null); // Reset selected item after successful save
   };
 
   return (
@@ -92,39 +88,38 @@ const RackItemTable = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Item Name</TableCell>
+             <TableCell>ID</TableCell> {/* Updated header */}              <TableCell>Item Name</TableCell>
               <TableCell>Rack Code</TableCell>
               <TableCell>Rack Slot</TableCell>
               <TableCell>Quantity Stored</TableCell>
               <TableCell>Date Stored</TableCell>
-              <TableCell>Label Generated</TableCell>
+              {/* <TableCell>Label Generated</TableCell> */}
               <TableCell>Material Code</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {rackItems.map((rackItem) => (
+            {rackItems.map((rackItem,index) => (
               <TableRow key={rackItem.rackItemId}>
-                <TableCell>{rackItem.rackItemId}</TableCell>
+                 <TableCell>{index + 1}</TableCell> {/* Displaying serial number */}
                 <TableCell>{rackItem.Item?.name || 'N/A'}</TableCell>
                 <TableCell>{rackCodeMap[rackItem.RackSlot?.rackId] || 'N/A'}</TableCell>
                 <TableCell>{rackItem.RackSlot?.slotLabel || 'N/A'}</TableCell>
                 <TableCell>{rackItem.quantityStored}</TableCell>
                 <TableCell>{new Date(rackItem.dateStored).toLocaleDateString()}</TableCell>
-                <TableCell>{rackItem.labelGenerated ? 'Yes' : 'No'}</TableCell>
+                {/* <TableCell>{rackItem.labelGenerated ? 'Yes' : 'No'}</TableCell> */}
                 <TableCell>{rackItem.materialCode}</TableCell>
                 <TableCell>
-                  <Button onClick={() => handleEdit(rackItem)} variant="contained" color="primary">Edit</Button>
-                  <Button onClick={() => handleDelete(rackItem.rackItemId)} variant="contained" color="secondary">Delete</Button>
-                  <Button onClick={handleOpenMenu} variant="contained">
+                  <Button onClick={() => handleEdit(rackItem)} variant="contained" color="primary">
+                    Edit
+                  </Button>
+                  <Button onClick={() => handleDelete(rackItem.rackItemId)} variant="contained" color="secondary">
+                    Delete
+                  </Button>
+                  <Button onClick={(e) => handleMenuOpen(e, rackItem)} variant="contained">
                     <MoreVertIcon />
                   </Button>
-                  <Menu
-                    anchorEl={anchorEl}
-                    open={open}
-                    onClose={handleMenuClose}
-                  >
+                  <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
                     <MenuItem onClick={() => handleStockMovement(rackItem)}>Move Stock</MenuItem>
                   </Menu>
                 </TableCell>
@@ -140,8 +135,8 @@ const RackItemTable = () => {
           onClose={() => setModalOpen(false)}
           rackItem={editingItem}
           onSave={(updatedItem) => {
-            setRackItems(prevItems =>
-              prevItems.map(item => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
+            setRackItems((prevItems) =>
+              prevItems.map((item) => (item.rackItemId === updatedItem.rackItemId ? updatedItem : item))
             );
             setModalOpen(false);
           }}
@@ -150,13 +145,14 @@ const RackItemTable = () => {
 
       {selectedItem && (
         <StockMovementForm
+          key={selectedItem.rackItemId}  // Ensure unique key per item
           open={Boolean(selectedItem)}
           onClose={() => setSelectedItem(null)}
           selectedItem={selectedItem}
-          fromRackId={selectedItem.RackSlot?.rackId} // Pass the correct rack ID
-          fromSlotLabel={selectedItem.RackSlot?.slotLabel} // Pass the correct slot label
-          fromSlotId={selectedItem.RackSlot?.id} // Ensure the correct slot ID is passed
-          onStockMovementSave={handleStockMovementSave} // Pass save function
+          fromRackId={selectedItem.RackSlot?.rackId}
+          fromSlotLabel={selectedItem.RackSlot?.slotLabel}
+          fromSlotId={selectedItem.RackSlot?.id}
+          onStockMovementSave={handleStockMovementSave}
         />
       )}
     </>

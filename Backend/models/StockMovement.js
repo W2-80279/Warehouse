@@ -71,7 +71,7 @@ const StockMovement = sequelize.define('StockMovement', {
     timestamps: true
 });
 
-// Define associations without aliases
+// Define associations
 StockMovement.belongsTo(RackSlot, {
     foreignKey: 'fromRackId',
     targetKey: 'rackId'
@@ -91,7 +91,7 @@ StockMovement.belongsTo(RackSlot, {
 StockMovement.belongsTo(RackItem, {
     foreignKey: 'rackItemId',
     targetKey: 'rackItemId',
-    onDelete: 'CASCADE'
+    onDelete: 'RESTRICT' // Prevent cascade deletes
 });
 StockMovement.belongsTo(User, {
     foreignKey: 'movedBy',

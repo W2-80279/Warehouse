@@ -19,6 +19,8 @@ import axios from 'axios';
 import AddIcon from '@mui/icons-material/Add';
 import { useRackItemContext } from './RackItemContext';
 import RackItemTable from './RackItemTable';
+import Autocomplete from '@mui/lab/Autocomplete';
+
 
 const RackItemForm = () => {
   const { setRackItems } = useRackItemContext();
@@ -66,65 +68,100 @@ const RackItemForm = () => {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      if (!selectedItem || !selectedSlot || quantity <= 0) {
-        alert('Please fill all required fields and ensure quantity is positive.');
-        return;
+        // Ensure the selected item, slot, and quantity are valid
+        if (!selectedItem || !selectedSlot || quantity <= 0) {
+            alert('Please fill all required fields and ensure quantity is positive.');
+            setLoading(false); // Stop loading if validation fails
+            return;
+        }
+
+        // Parse quantity as a number to ensure correct type
+        const quantityNumber = Number(quantity);
+        if (isNaN(quantityNumber) || quantityNumber <= 0) {
+            alert('Quantity must be a valid positive number.');
+            setLoading(false); // Stop loading if quantity is invalid
+            return;
+        }
+
+        // Make the POST request to add the new rack item
+        await axios.post('http://localhost:5000/api/rack-items', {
+            itemId: selectedItem,
+            rackSlotId: selectedSlot,
+            quantityStored: quantityNumber,  // Send quantity as number
+            dateStored,
+            labelGenerated,
+            materialCode
+        }, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Fetch updated rack items
+        const response = await axios.get('http://localhost:5000/api/rack-items', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        setRackItems(response.data);
+        handleCloseDialog(); // Close the form after success
+        alert('Rack item added successfully!');
+    } catch (error) {
+        console.error('Error adding rack item:', error);
+        alert(error.response?.data?.message || 'Error adding rack item');
+    } finally {
+        setLoading(false); // Stop loading
+    }
+};
+
+
+const handleEdit = async () => {
+  if (!editingItem) return;
+  setLoading(true);
+  try {
+      // Parse quantity to ensure it's a number
+      const quantityNumber = Number(quantity);  // Ensure quantity is parsed to a number
+
+      // Log the parsed quantity for debugging
+      console.log('Parsed Quantity:', quantityNumber);
+
+      // Validate that quantity is a positive number
+      if (isNaN(quantityNumber) || quantityNumber <= 0) {
+          alert('Quantity must be a valid positive integer.');
+          setLoading(false);
+          return;
       }
 
-      const quantityNumber = Number(quantity);
+      // Prepare the data to send to the server
+      const rackItemData = {
+          itemId: selectedItem,
+          rackSlotId: selectedSlot,
+          quantityStored: quantityNumber,  // Ensure quantity is sent as a number
+          dateStored,
+          labelGenerated,
+          materialCode
+      };
 
-      await axios.post('http://localhost:5000/api/rack-items', {
-        itemId: selectedItem,
-        rackSlotId: selectedSlot,
-        quantityStored: quantityNumber,
-        dateStored,
-        labelGenerated,
-        materialCode
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      // Log the data being sent to the server
+      console.log('Sending Rack Item Data:', rackItemData);
+
+      // Make the PUT request to update the rack item
+      await axios.put(`http://localhost:5000/api/rack-items/${editingItem.rackItemId}`, rackItemData, {
+          headers: { Authorization: `Bearer ${token}` }
       });
 
-      alert('Rack item added successfully!');
+      // Update the rack items list
       const response = await axios.get('http://localhost:5000/api/rack-items', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setRackItems(response.data);
-      handleCloseDialog();
-    } catch (error) {
-      console.error('Error adding rack item:', error);
-      alert(error.response?.data?.message || 'Error adding rack item');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!editingItem) return;
-    setLoading(true);
-    try {
-      await axios.put(`http://localhost:5000/api/rack-items/${editingItem.rackItemId}`, {
-        itemId: selectedItem,
-        rackSlotId: selectedSlot,
-        quantityStored: quantity,
-        dateStored,
-        labelGenerated,
-        materialCode
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Rack item updated successfully!');
-      const response = await axios.get('http://localhost:5000/api/rack-items', {
-        headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` }
       });
       setRackItems(response.data);
       handleCloseEditDialog();
-    } catch (error) {
-      console.error('Error updating rack item', error);
-      alert('Error updating rack item');
-    } finally {
+      alert('Rack item updated successfully!');
+  } catch (error) {
+      console.error('Error updating rack item:', error);
+      alert('Error saving item: ' + (error.response?.data?.message || 'An error occurred'));
+  } finally {
       setLoading(false);
-    }
-  };
+  }
+};
+
+
 
   const handleDelete = async (rackItemId) => {
     setLoading(true);
@@ -217,20 +254,14 @@ const RackItemForm = () => {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Item</InputLabel>
-              <Select
-                value={selectedItem}
-                onChange={(e) => setSelectedItem(e.target.value)}
-                label="Item"
-              >
-                {items.map((item) => (
-                  <MenuItem key={item.itemId} value={item.itemId}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={items}
+              getOptionLabel={(option) => option.name}
+              onChange={(event, newValue) => setSelectedItem(newValue?.itemId || '')} // Set selected item ID
+              renderInput={(params) => (
+                <TextField {...params} label="Item" variant="outlined" fullWidth margin="dense" />
+              )}
+            />
 
             <FormControl fullWidth margin="dense">
               <InputLabel>Slot</InputLabel>

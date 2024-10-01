@@ -12,8 +12,11 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.7",
+    "instascan": "^1.0.0",
     "jwt-decode": "^4.0.0",
     "react": "^18.3.1",
+    "react-barcode": "^1.5.3",
+    "react-barcode-reader": "^0.0.2",
     "react-csv": "^2.2.2",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.0",
@@ -21,7 +24,8 @@
     "react-router-dom": "^6.26.1",
     "react-scripts": "5.0.1",
     "recharts": "^2.12.7",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",

@@ -19,6 +19,7 @@ import StockMovementForm from './pages/movement/StockMovementForm';
 import FileUpload from './pages/export/FileUpload';
 import DataTable from './pages/export/DataTable';
 import StockMovementTable from './pages/movement/StockMovementTable';
+import DetailsPage from './pages/management/DetailsPage';
 
 function App() {
   return (
@@ -169,6 +170,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+           <Route
+            path="/details"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DetailsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/movement-table"
             element={
@@ -179,6 +190,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
         </Routes>
       </RackItemProvider>
     </Router>

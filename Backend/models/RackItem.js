@@ -45,6 +45,10 @@ const RackItem = sequelize.define('RackItem', {
     materialCode: {
         type: DataTypes.STRING(50),
         allowNull: true
+    },
+    isDeleted: {  // Soft deletion flag
+        type: DataTypes.BOOLEAN,
+        defaultValue: false // Default to false
     }
 }, {
     timestamps: false,

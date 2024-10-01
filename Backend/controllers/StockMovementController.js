@@ -3,17 +3,18 @@ const StockMovement = require('../models/StockMovement');
 const RackSlot = require('../models/RackSlot');
 const RackItem = require('../models/RackItem');
 
-// Calculate available quantity for movement
-const calculateAvailableQuantity = async (fromRackItem, toRackSlot) => {
-    const availableInSource = fromRackItem.quantityStored; // Available quantity in source
-    const availableInTarget = toRackSlot.capacity - toRackSlot.currentCapacity; // Available capacity in target slot
-    console.log(`Calculating available quantity: From RackItem(${availableInSource}) to RackSlot(${availableInTarget})`);
-    return Math.min(availableInSource, availableInTarget); // Return the minimum of both
-};
+// // Calculate available quantity for movement
+// const calculateAvailableQuantity = async (fromRackItem, toRackSlot) => {
+//     const availableInSource = fromRackItem.quantityStored; // Available quantity in source
+//     const availableInTarget = toRackSlot.capacity - toRackSlot.currentCapacity; // Available capacity in target slot
+//     console.log(`Calculating available quantity: From RackItem(${availableInSource}) to RackSlot(${availableInTarget})`);
+//     return Math.min(availableInSource, availableInTarget); // Return the minimum of both
+// };
 
 // Move items between slots and adjust current capacity
 exports.createStockMovement = async (req, res) => {
     const { rackItemId, fromRackId, fromSlotId, toRackId, toSlotId, quantity, movementDate, movedBy } = req.body;
+    console.log("Request body:", req.body);
 
     const transaction = await sequelize.transaction();
     try {
@@ -23,8 +24,8 @@ exports.createStockMovement = async (req, res) => {
             return res.status(400).json({ error: 'Quantity must be a positive valid number' });
         }
 
-        // Fetch the rack items in the source slot and target slot
-        const fromRackItem = await RackItem.findOne({ where: { rackItemId, rackSlotId: fromSlotId }, transaction });
+        // Fetch the rack item in the source slot
+        const fromRackItem = await RackItem.findOne({ where: { rackItemId, rackSlotId: fromSlotId, isDeleted: false }, transaction });
         if (!fromRackItem) return res.status(404).json({ error: 'Rack item not found in source slot' });
 
         const toRackSlot = await RackSlot.findByPk(toSlotId, { transaction });
@@ -44,15 +45,17 @@ exports.createStockMovement = async (req, res) => {
 
         await Promise.all([fromRackSlot.save({ transaction }), toRackSlot.save({ transaction })]);
 
-        // Update rack items in source and target slots
+        // Update rack item in source slot
         fromRackItem.quantityStored -= parsedQuantity;
         if (fromRackItem.quantityStored <= 0) {
-            await fromRackItem.destroy({ transaction }); // Remove item if it's empty
+            fromRackItem.isDeleted = true; // Soft delete the rack item instead of destroying
+            await fromRackItem.save({ transaction }); // Save the updated item
         } else {
             await fromRackItem.save({ transaction });
         }
 
-        let toRackItem = await RackItem.findOne({ where: { itemId: fromRackItem.itemId, rackSlotId: toSlotId }, transaction });
+        // Update or create rack item in the target slot
+        let toRackItem = await RackItem.findOne({ where: { itemId: fromRackItem.itemId, rackSlotId: toSlotId, isDeleted: false }, transaction });
         if (toRackItem) {
             toRackItem.quantityStored += parsedQuantity; // Update quantity if already exists
             await toRackItem.save({ transaction });
@@ -67,6 +70,19 @@ exports.createStockMovement = async (req, res) => {
                 materialCode: fromRackItem.materialCode
             }, { transaction });
         }
+
+        // Log the stock movement
+        await StockMovement.create({
+            rackItemId,
+            fromRackId,
+            fromSlotId,
+            toRackId,
+            toSlotId,
+            quantity: parsedQuantity,
+            movementDate: new Date(),  // You might want to use the passed `movementDate`
+            movedBy,
+            actionType: 'create'  // Specify action type
+        }, { transaction });
 
         await transaction.commit();
         res.status(201).json({ message: 'Stock movement successful' });
@@ -131,6 +147,19 @@ exports.updateStockMovement = async (req, res) => {
         // Save the updated slots and movement
         await Promise.all([fromRackSlot.save({ transaction }), toRackSlot.save({ transaction }), movement.save({ transaction })]);
 
+        // Log the stock movement update
+        await StockMovement.create({
+            rackItemId,
+            fromRackId,
+            fromSlotId,
+            toRackId,
+            toSlotId,
+            quantity: parsedQuantity,
+            movementDate: new Date(),  // Use the current date or the passed one
+            movedBy,
+            actionType: 'update'  // Specify action type
+        }, { transaction });
+
         await transaction.commit();
         console.log(`Stock movement updated successfully (id: ${req.params.id})`);
         res.status(200).json({ message: 'Stock movement updated successfully' });
@@ -176,41 +205,32 @@ exports.getStockMovementById = async (req, res) => {
 
 // Delete a stock movement
 exports.deleteStockMovement = async (req, res) => {
+    const transaction = await sequelize.transaction();
     try {
-        const result = await StockMovement.destroy({ where: { id: req.params.id } });
+        const movement = await StockMovement.findByPk(req.params.id, { transaction });
+        if (!movement) return res.status(404).json({ error: 'Stock movement not found' });
 
-        if (!result) {
-            console.log(`Stock movement not found for deletion (id: ${req.params.id})`);
-            return res.status(404).json({ error: 'Stock movement not found' });
-        }
+        // Log the deletion
+        await StockMovement.create({
+            rackItemId: movement.rackItemId,
+            fromRackId: movement.fromRackId,
+            fromSlotId: movement.fromSlotId,
+            toRackId: movement.toRackId,
+            toSlotId: movement.toSlotId,
+            quantity: movement.quantity,
+            movementDate: new Date(),  // Use the current date for deletion
+            movedBy: movement.movedBy,  // Log who moved it
+            actionType: 'delete'  // Specify action type
+        }, { transaction });
+
+        await movement.destroy({ transaction });
+        await transaction.commit();
 
         console.log(`Stock movement deleted successfully (id: ${req.params.id})`);
-        res.status(200).json({ message: 'Stock movement deleted successfully' });
+        res.status(204).json({ message: 'Stock movement deleted successfully' });
     } catch (error) {
+        await transaction.rollback();
         console.error('Error deleting stock movement:', error.message);
-        res.status(500).json({ error: 'Internal server error', details: error.message });
-    }
-};
-
-// Get available quantity for movement
-exports.getAvailableQuantity = async (req, res) => {
-    const { rackItemId, fromSlotId, toSlotId } = req.query;
-
-    try {
-        const fromRackItem = await RackItem.findOne({
-            where: { rackItemId, rackSlotId: fromSlotId }
-        });
-
-        const toRackSlot = await RackSlot.findByPk(toSlotId);
-
-        if (!fromRackItem || !toRackSlot) {
-            return res.status(404).json({ error: 'Rack item or slot not found' });
-        }
-
-        const availableQuantity = await calculateAvailableQuantity(fromRackItem, toRackSlot);
-        res.status(200).json({ availableQuantity });
-    } catch (error) {
-        console.error('Error fetching available quantity:', error.message);
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };

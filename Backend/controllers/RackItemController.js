@@ -1,13 +1,15 @@
 const RackItem = require('../models/RackItem');
 const Item = require('../models/Item');
 const RackSlot = require('../models/RackSlot');
-const { sequelize }= require('../config/db');
+const { sequelize } = require('../config/db');
 
-// Get all rack items
+// Get all rack items(include soft delete also)
 exports.getAllRackItems = async (req, res) => {
     try {
         const rackItems = await RackItem.findAll({
-            include: [Item, RackSlot] // Include associated models
+            // where: { isDeleted: false }, // Only get non-deleted items
+            include: [Item, RackSlot], // Include associated models
+            paranoid:false,
         });
         res.status(200).json(rackItems);
     } catch (error) {
@@ -16,10 +18,26 @@ exports.getAllRackItems = async (req, res) => {
     }
 };
 
+exports.getActiveItems = async (req, res) => {
+    try {
+        const rackItems = await RackItem.findAll({
+            where: { isDeleted: false }, // Only get non-deleted items
+            include: [Item, RackSlot], // Include associated models
+            
+        });
+        res.status(200).json(rackItems);
+    } catch (error) {
+        console.error('Error fetching rack items:', error);
+        res.status(500).json({ message: 'Error fetching rack items', error: error.message });
+    }
+};
+
+
 // Get rack item by ID
 exports.getRackItemById = async (req, res) => {
     try {
         const rackItem = await RackItem.findByPk(req.params.id, {
+            where: { isDeleted: false }, // Ensure we only get non-deleted items
             include: [Item, RackSlot]
         });
         if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
@@ -56,7 +74,8 @@ exports.createRackItem = async (req, res) => {
             rackSlotId,
             quantityStored,
             materialCode,
-            dateStored: new Date()
+            dateStored: new Date(),
+            isDeleted: false // Mark as not deleted
         }, { transaction });
 
         // Update the slot capacity
@@ -74,11 +93,12 @@ exports.createRackItem = async (req, res) => {
 };
 
 // Update a rack item
+// Update a rack item
 exports.updateRackItem = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const rackItem = await RackItem.findByPk(req.params.id, { transaction });
-        if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
+        if (!rackItem || rackItem.isDeleted) return res.status(404).json({ message: 'Rack item not found' });
 
         const { itemId, rackSlotId, quantityStored, materialCode } = req.body;
 
@@ -87,16 +107,24 @@ exports.updateRackItem = async (req, res) => {
             return res.status(400).json({ message: 'quantityStored must be a positive integer.' });
         }
 
-        // Check if the rack slot exists
+        // Get the current rack slot and its capacity
         const rackSlot = await RackSlot.findByPk(rackSlotId, { transaction });
         if (!rackSlot) return res.status(404).json({ message: 'Rack slot not found' });
 
-        // Update the rack item
+        // Calculate the capacity adjustment
+        const capacityDifference = quantityStored - rackItem.quantityStored;
+
+        // Update the rack item's properties
         await rackItem.update({
             itemId,
             rackSlotId,
             quantityStored,
             materialCode
+        }, { transaction });
+
+        // Update the rack slot's current capacity
+        await rackSlot.update({
+            currentCapacity: rackSlot.currentCapacity - capacityDifference
         }, { transaction });
 
         await transaction.commit();
@@ -108,12 +136,13 @@ exports.updateRackItem = async (req, res) => {
     }
 };
 
+
 // Delete a rack item (with proper capacity management)
 exports.deleteRackItem = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const rackItem = await RackItem.findByPk(req.params.id, { transaction });
-        if (!rackItem) return res.status(404).json({ message: 'Rack item not found' });
+        if (!rackItem || rackItem.isDeleted) return res.status(404).json({ message: 'Rack item not found' });
 
         // Update the associated rack slot's current capacity
         const rackSlot = await RackSlot.findByPk(rackItem.rackSlotId, { transaction });
@@ -121,8 +150,8 @@ exports.deleteRackItem = async (req, res) => {
             currentCapacity: rackSlot.currentCapacity + rackItem.quantityStored
         }, { transaction });
 
-        // Delete the rack item
-        await rackItem.destroy({ transaction });
+        // Soft delete the rack item
+        await rackItem.update({ isDeleted: true }, { transaction });
         await transaction.commit();
 
         res.status(204).json({ message: 'Rack item deleted successfully' });
@@ -132,3 +161,75 @@ exports.deleteRackItem = async (req, res) => {
         res.status(500).json({ message: 'Error deleting rack item', error: error.message });
     }
 };
+
+// Fetch rack item details by scanning the barcode
+exports.getRackItemByBarcode = async (req, res) => {
+    const { barcode } = req.params;
+  
+    try {
+      // Find the item by barcode
+      const item = await Item.findOne({
+        where: { barcode },
+      });
+  
+      if (!item) {
+        return res.status(404).json({ message: 'Item not found' });
+      }
+  
+      // Find the rack item where this item is stored
+      const rackItem = await RackItem.findOne({
+        where: { itemId: item.itemId, isDeleted: false },
+        include: [RackSlot] // Include the RackSlot details
+      });
+  
+      if (!rackItem) {
+        return res.status(404).json({ message: 'Rack item not found' });
+      }
+  
+      // Return the rack item details along with associated item and rack slot
+      res.status(200).json({
+        item,
+        rackItem,
+        rackSlot: rackItem.RackSlot
+      });
+    } catch (error) {
+      console.error('Error fetching rack item by barcode:', error);
+      res.status(500).json({ message: 'Error fetching rack item', error: error.message });
+    }
+  };
+
+// Add a new controller function to handle barcode scanning
+exports.scanBarcode = async (req, res) => {
+    const { barcode } = req.body;
+  
+    try {
+      // Find the item by barcode
+      const item = await Item.findOne({
+        where: { barcode },
+      });
+  
+      if (!item) {
+        return res.status(404).json({ message: 'Item not found' });
+      }
+  
+      // Find the rack item where this item is stored
+      const rackItem = await RackItem.findOne({
+        where: { itemId: item.itemId, isDeleted: false },
+        include: [RackSlot] // Include the RackSlot details
+      });
+  
+      if (!rackItem) {
+        return res.status(404).json({ message: 'Rack item not found' });
+      }
+  
+      // Return the rack item details along with associated item and rack slot
+      res.status(200).json({
+        item,
+        rackItem,
+        rackSlot: rackItem.RackSlot
+      });
+    } catch (error) {
+      console.error('Error scanning barcode:', error);
+      res.status(500).json({ message: 'Error scanning barcode', error: error.message });
+    }
+  };
