@@ -1,4 +1,5 @@
 // routes/rack.js
+
 const express = require('express');
 const router = express.Router();
 const {
@@ -7,7 +8,8 @@ const {
     createRack,
     updateRack,
     deleteRack,
-    getAvailableCapacity
+    getAvailableCapacity,
+    getRackCount // Import the rack count function
 } = require('../controllers/RackController');
 const { auth, authorize } = require('../middleware/auth');
 
@@ -18,5 +20,8 @@ router.post('/', auth, authorize([1]), createRack); // Admin only
 router.put('/:id', auth, authorize([1]), updateRack); // Admin only
 router.delete('/:id', auth, authorize([1]), deleteRack); // Admin only
 router.get('/:id/available-capacity', auth, authorize([1]), getAvailableCapacity); // Admin only
+
+// Add the new route for getting the rack count
+router.get('/rack/count', auth, authorize([1]), getRackCount); // Admin only
 
 module.exports = router;

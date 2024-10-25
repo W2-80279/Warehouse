@@ -2,21 +2,26 @@ import React, { useState, useEffect } from 'react';
 import {
   TextField, Button, MenuItem, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, Snackbar, Alert, Box,
-  Typography, useMediaQuery
+  Typography, useMediaQuery, useTheme
 } from '@mui/material';
+import { Delete, Edit } from '@mui/icons-material';
+import { useDispatch, useSelector } from 'react-redux';
+import { setSearchQuery, selectSearchQuery } from '../../features/searchSlice'; // Importing search actions and selector
 import axios from 'axios';
 
 const RackSlotForm = () => {
+  const dispatch = useDispatch();
+  const searchQuery = useSelector(selectSearchQuery); // Get search query from the Redux store
+
   const [rackSlots, setRackSlots] = useState([]);
   const [rackSlot, setRackSlot] = useState({ slotLabel: '', slotCapacity: '', currentCapacity: '', rackId: '' });
   const [racks, setRacks] = useState([]);
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  const [availableCapacity, setAvailableCapacity] = useState(0); // To display near "Add Slot" button
+  const [availableCapacity, setAvailableCapacity] = useState(0);
 
   const token = localStorage.getItem('token');
-  
-  // Responsive logic
+  const theme = useTheme();
   const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
@@ -64,10 +69,13 @@ const RackSlotForm = () => {
     const { name, value } = e.target;
     setRackSlot({ ...rackSlot, [name]: value });
 
-    // Fetch available capacity when a rack is selected
     if (name === 'rackId') {
       fetchAvailableCapacity(value);
     }
+  };
+
+  const handleSearchChange = (e) => {
+    dispatch(setSearchQuery(e.target.value)); // Dispatch search query to Redux store
   };
 
   const handleSubmit = async (e) => {
@@ -79,18 +87,16 @@ const RackSlotForm = () => {
         });
         showSnackbar('Rack slot updated successfully', 'success');
       } else {
-        // Check for available capacity when adding a new slot
         const response = await axios.post('http://localhost:5000/api/rack-slots', rackSlot, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setAvailableCapacity(response.data.remainingCapacity); // Update available capacity
+        setAvailableCapacity(response.data.remainingCapacity);
         showSnackbar('Rack slot added successfully', 'success');
       }
       resetForm();
-      fetchRackSlots(); // Refresh the rack slot list
+      fetchRackSlots();
     } catch (error) {
       if (error.response && error.response.status === 400) {
-        // Handle not enough capacity
         showSnackbar(`Not enough space. Remaining capacity: ${error.response.data.remainingCapacity}`, 'error');
       } else {
         console.error('Error saving rack slot:', error);
@@ -102,7 +108,7 @@ const RackSlotForm = () => {
   const resetForm = () => {
     setRackSlot({ slotLabel: '', slotCapacity: '', currentCapacity: '', rackId: '' });
     setEditingSlotId(null);
-    setAvailableCapacity(0); // Reset available capacity
+    setAvailableCapacity(0);
   };
 
   const handleEdit = (slot) => {
@@ -113,7 +119,7 @@ const RackSlotForm = () => {
       rackId: slot.rackId,
     });
     setEditingSlotId(slot.id);
-    fetchAvailableCapacity(slot.rackId); // Fetch available capacity for the selected rack
+    fetchAvailableCapacity(slot.rackId);
   };
 
   const handleDelete = async (slotId) => {
@@ -122,7 +128,7 @@ const RackSlotForm = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       showSnackbar('Rack slot deleted successfully', 'success');
-      fetchRackSlots(); // Refresh the rack slot list
+      fetchRackSlots();
     } catch (error) {
       console.error('Error deleting rack slot:', error);
       showSnackbar('Error deleting rack slot', 'error');
@@ -136,6 +142,13 @@ const RackSlotForm = () => {
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
   };
+
+  // Filter rack slots based on the search query
+  const filteredRackSlots = rackSlots.filter(slot =>
+    slot.slotLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(slot.rackId || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
 
   return (
     <>
@@ -164,7 +177,7 @@ const RackSlotForm = () => {
           inputProps={{ min: 1 }}
         />
         <TextField
-          label="Current Capacity"
+          label="Available Capacity"
           name="currentCapacity"
           value={rackSlot.currentCapacity}
           onChange={handleInputChange}
@@ -190,12 +203,17 @@ const RackSlotForm = () => {
             </MenuItem>
           ))}
         </TextField>
+        {/* <TextField
+          label="Search Slots"
+          variant="outlined"
+          onChange={handleSearchChange}
+          fullWidth
+          margin="normal"
+        /> */}
         <Box sx={{ display: 'flex', alignItems: 'center', marginTop: 2 }}>
           <Button type="submit" variant="contained" color="primary">
             {editingSlotId ? 'Update Slot' : 'Add Slot'}
           </Button>
-
-          {/* Transparent Box showing available capacity */}
           <Box
             sx={{
               marginLeft: 2,
@@ -212,15 +230,14 @@ const RackSlotForm = () => {
         </Box>
       </form>
 
-      {/* Snackbar for notifications */}
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose}>
         <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
       </Snackbar>
 
-      {/* Table of rack slots */}
-      <TableContainer component={Paper} style={{ marginTop: '20px' }}>
+           {/* Table of rack slots */}
+           <TableContainer component={Paper} style={{ marginTop: '20px' }} sx={{backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -233,7 +250,7 @@ const RackSlotForm = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rackSlots.map((slot) => (
+            {filteredRackSlots.map((slot) => (
               <TableRow key={slot.id}>
                 <TableCell>{slot.id}</TableCell>
                 <TableCell>{slot.Rack.rackCode}</TableCell>
@@ -241,27 +258,15 @@ const RackSlotForm = () => {
                 <TableCell>{slot.slotCapacity}</TableCell>
                 <TableCell>{slot.currentCapacity}</TableCell>
                 <TableCell>
-                  <Button
-                    onClick={() => handleEdit(slot)}
-                    variant="contained"
-                    color="primary"
-                    style={{ marginRight: '10px' }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(slot.id)}
-                    variant="contained"
-                    color="secondary"
-                  >
-                    Delete
-                  </Button>
+                  <Edit onClick={() => handleEdit(slot)} style={{ marginRight: '10px' }} />
+                  <Delete onClick={() => handleDelete(slot.id)} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
     </>
   );
 };

@@ -2,6 +2,20 @@
 const Rack = require('../models/Rack');
 const RackSlot = require('../models/RackSlot');
 
+// controllers/RackController.js
+
+// Get the total count of racks
+exports.getRackCount = async (req, res) => {
+    try {
+        const rackCount = await Rack.count(); // Count the total number of racks
+        res.status(200).json({ total: rackCount });
+    } catch (error) {
+        console.error('Error fetching rack count:', error);
+        res.status(500).json({ message: 'Error fetching rack count', error: error.message });
+    }
+};
+
+
 // Get all racks
 exports.getAllRacks = async (req, res) => {
     try {
@@ -105,3 +119,5 @@ exports.getAvailableCapacity = async (req, res) => {
         res.status(500).json({ message: 'Error fetching available capacity', error: error.message });
     }
 };
+
+// Get the total count of racks

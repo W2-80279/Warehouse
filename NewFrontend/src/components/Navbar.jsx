@@ -17,41 +17,38 @@ import {
   Menu,
   MenuItem,
   useTheme,
-  useMediaQuery, // Import useMediaQuery
+  useMediaQuery,
 } from '@mui/material';
 import { useDispatch } from 'react-redux';
-import { setMode } from '../state';
+import { setSearchQuery } from '../features/searchSlice'; // Import setSearchQuery
 import FlexBetween from './FlexBetween';
 import profileImage from '../assets/profile.jpeg';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
+import { setMode } from '../state';
 
 const Navbar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const dispatch = useDispatch();
   const theme = useTheme();
-  const navigate = useNavigate(); // Initialize navigate
-
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const isOpen = Boolean(anchorEl);
-
-  // useMediaQuery hook to apply breakpoints
   const isNonMobileScreens = useMediaQuery('(min-width:600px)');
 
   const handleClick = (event) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
   const handleLogout = () => {
-    localStorage.removeItem('token'); // Remove the token from local storage
-    navigate('/login'); // Redirect to the login page
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  // Handle search input
+  const handleSearchChange = (event) => {
+    dispatch(setSearchQuery(event.target.value)); // Dispatch search query
   };
 
   return (
-    <AppBar
-      sx={{
-        position: 'static',
-        background: 'none',
-        boxShadow: 'none',
-      }}
-    >
+    <AppBar sx={{ position: 'static', background: 'none', boxShadow: 'none' }}>
       <Toolbar sx={{ justifyContent: 'space-between' }}>
         {/* LEFT SIDE */}
         <FlexBetween>
@@ -67,7 +64,10 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen }) => {
               p="0.1rem 1.5rem"
               marginLeft="8px"
             >
-              <InputBase placeholder="Search..." />
+              <InputBase
+                placeholder="Search..."
+                onChange={handleSearchChange} // Handle change
+              />
               <IconButton>
                 <Search />
               </IconButton>
@@ -138,7 +138,11 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen }) => {
             padding: '0.1rem 1.5rem',
           }}
         >
-          <InputBase placeholder="Search..." fullWidth />
+          <InputBase
+            placeholder="Search..."
+            fullWidth
+            onChange={handleSearchChange} // Handle change
+          />
           <IconButton>
             <Search />
           </IconButton>

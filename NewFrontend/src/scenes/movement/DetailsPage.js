@@ -19,16 +19,20 @@ import {
   Menu,
   MenuItem,
   Tooltip,
+  TextField,
+  DialogActions,
 } from '@mui/material';
 import BarcodeReader from 'react-barcode-reader';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ExportIcon from '@mui/icons-material/GetApp';
-import * as XLSX from 'xlsx'; // Library for Excel export
-import FlexBetween from '../../components/FlexBetween';
+import * as XLSX from 'xlsx';
 import { useTheme } from '@mui/material/styles';
+import SearchIcon from '@mui/icons-material/Search';
+import { Collapse } from '@mui/material';
+
 
 const DetailsPage = () => {
-  const theme = useTheme(); // Get theme
+  const theme = useTheme();
   const token = localStorage.getItem('token');
   const [rackItems, setRackItems] = useState([]);
   const [open, setOpen] = useState(false);
@@ -37,15 +41,26 @@ const DetailsPage = () => {
   const [suppliers, setSuppliers] = useState({});
   const [categories, setCategories] = useState({});
   const [racks, setRacks] = useState([]);
-  const [filter, setFilter] = useState('active'); // Filter state for active, all, deleted
+  const [filter, setFilter] = useState('active');
   const [anchorEl, setAnchorEl] = useState(null);
+  const [generalFilter, setGeneralFilter] = useState('');
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [searchBoxOpen, setSearchBoxOpen] = useState(false); // State for search box visibility
 
-  // Fetch rack items based on the selected filter
+  // Fetch rack items, racks data, and other logic here...
+
+  const handleSearchToggle = () => {
+    setSearchBoxOpen((prev) => !prev);
+  };
+
+  // Fetch rack items
   useEffect(() => {
     const fetchRackItems = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/rack-items`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await axios.get('http://localhost:5000/api/rack-items', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
         setRackItems(response.data);
       } catch (error) {
@@ -60,7 +75,9 @@ const DetailsPage = () => {
     const fetchRacks = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/racks', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
         setRacks(response.data);
       } catch (error) {
@@ -76,14 +93,21 @@ const DetailsPage = () => {
       if (!items[rackItem.itemId]) {
         axios
           .get(`http://localhost:5000/api/items/${rackItem.itemId}`, {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           })
           .then((response) => {
-            setItems((prevItems) => ({ ...prevItems, [rackItem.itemId]: response.data }));
+            setItems((prevItems) => ({
+              ...prevItems,
+              [rackItem.itemId]: response.data,
+            }));
             if (!suppliers[response.data.supplierId]) {
               axios
                 .get(`http://localhost:5000/api/suppliers/${response.data.supplierId}`, {
-                  headers: { Authorization: `Bearer ${token}` },
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
                 })
                 .then((response) => {
                   setSuppliers((prevSuppliers) => ({
@@ -98,7 +122,9 @@ const DetailsPage = () => {
             if (!categories[response.data.categoryId]) {
               axios
                 .get(`http://localhost:5000/api/categories/${response.data.categoryId}`, {
-                  headers: { Authorization: `Bearer ${token}` },
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
                 })
                 .then((response) => {
                   setCategories((prevCategories) => ({
@@ -122,7 +148,9 @@ const DetailsPage = () => {
   const handleScan = async (barcode) => {
     try {
       const response = await axios.get(`http://localhost:5000/api/items/barcode/${barcode}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       setScannedItem(response.data);
       setOpen(true);
@@ -155,68 +183,111 @@ const DetailsPage = () => {
   };
 
   const handleExport = () => {
-    // Convert rackItems to a format suitable for exporting
-    const exportData = rackItems.map((rackItem) => ({
-      ID: rackItem.rackItemId,
-      'Item Name': items[rackItem.itemId]?.name || 'N/A',
-      'Rack Name': rackCodeMap[rackItem.RackSlot?.rackId] || 'N/A',
-      'Rack Slot Label': rackItem.RackSlot?.slotLabel || 'N/A',
-      'Quantity Stored': rackItem.quantityStored,
-      'Date Stored': rackItem.dateStored,
-      'Material Code': rackItem.materialCode,
-      'Barcode': items[rackItem.itemId]?.barcode || 'N/A',
-      'Supplier Name': suppliers[items[rackItem.itemId]?.supplierId]?.supplierName || 'N/A',
-      'Category Name': categories[items[rackItem.itemId]?.categoryId]?.categoryName || 'N/A',
-      'Soft Deleted': rackItem.isDeleted ? 'Yes' : 'No',
-    }));
+    const exportData = rackItems
+      .filter((rackItem) => {
+        const item = items[rackItem.itemId] || {};
+        const dateStored = new Date(rackItem.dateStored);
 
-    // Create a new workbook and worksheet
+        // Match active, deleted, or all based on filter
+        const matchesFilter =
+          (filter === 'active' && !rackItem.isDeleted) ||
+          (filter === 'deleted' && rackItem.isDeleted) ||
+          (filter === 'all');
+
+        // Check date range
+        const matchesDateRange =
+          (!dateRange[0] || dateStored >= dateRange[0]) &&
+          (!dateRange[1] || dateStored <= dateRange[1]);
+
+        return matchesFilter && matchesDateRange;
+      })
+      .map((rackItem) => ({
+        ID: rackItem.rackItemId,
+        'Item Name': items[rackItem.itemId]?.name || 'N/A',
+        'Rack Name': rackCodeMap[rackItem.RackSlot?.rackId] || 'N/A',
+        'Rack Slot Label': rackItem.RackSlot?.slotLabel || 'N/A',
+        'Quantity Stored': rackItem.quantityStored,
+        'Date Stored': rackItem.dateStored,
+        'Material Code': rackItem.materialCode,
+        'Barcode': items[rackItem.itemId]?.barcode || 'N/A',
+        'Supplier Name': suppliers[items[rackItem.itemId]?.supplierId]?.supplierName || 'N/A',
+        'Category Name': categories[items[rackItem.itemId]?.categoryId]?.categoryName || 'N/A',
+      }));
+
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Rack Items');
 
-    // Export the workbook to Excel
     XLSX.writeFile(workbook, 'RackItems.xlsx');
   };
 
+  // Filter rack items based on search and date range
   const filteredRackItems = rackItems.filter((rackItem) => {
-    if (filter === 'active') return !rackItem.isDeleted;
-    if (filter === 'deleted') return rackItem.isDeleted;
-    return true; // For 'all'
+    const item = items[rackItem.itemId] || {};
+    const supplier = suppliers[item.supplierId] || {};
+    const category = categories[item.categoryId] || {};
+
+    // Convert the search term to lowercase for case-insensitive comparison
+    const searchTerm = generalFilter?.toLowerCase() || '';
+
+    // Check if any of the relevant fields include the search term
+    const matchesSearch =
+      item.name?.toLowerCase().includes(searchTerm) ||
+      rackCodeMap[rackItem.RackSlot?.rackId]?.toLowerCase().includes(searchTerm) ||
+      rackItem.materialCode?.toLowerCase().includes(searchTerm) ||
+      supplier.supplierName?.toLowerCase().includes(searchTerm) ||
+      category.categoryName?.toLowerCase().includes(searchTerm);
+
+    // Check if the date stored is within the selected date range
+    const dateStored = new Date(rackItem.dateStored);
+    const matchesDateRange =
+      (!dateRange[0] || dateStored >= dateRange[0]) &&
+      (!dateRange[1] || dateStored <= dateRange[1]);
+
+    // Match the filter (active/deleted/all)
+    const matchesFilter =
+      (filter === 'active' && !rackItem.isDeleted) ||
+      (filter === 'deleted' && rackItem.isDeleted) ||
+      (filter === 'all');
+
+    return matchesSearch && matchesDateRange && matchesFilter;
   });
 
   return (
-    <Box sx={{ flex: 1, p: 3, backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
+    <Box sx={{ flex: 1, padding: 2 }}>
       <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Typography variant="h4" component="h1">
-            Rack Items
-          </Typography>
-        </Grid>
+        <Grid item xs={12} display="flex" alignItems="center">
+          <Tooltip title="Filter">
+            <IconButton onClick={handleFilterClick}>
+              <FilterListIcon />
+            </IconButton>
+          </Tooltip>
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+            <MenuItem onClick={() => handleFilterSelect('active')}>Active Information Item</MenuItem>
+            <MenuItem onClick={() => handleFilterSelect('deleted')}>Removed Infromation Item</MenuItem>
+            <MenuItem onClick={() => handleFilterSelect('all')}>All Infromation Item</MenuItem>
+          </Menu>
+         <TextField
+            type="date"
+            label="Start Date"
+            variant="outlined"
+            onChange={(e) => setDateRange([new Date(e.target.value), dateRange[1]])}
+            sx={{ marginLeft: 2, marginRight: 2 }} // Add right margin to separate from the next field
+            InputLabelProps={{ shrink: true }} // Ensure label does not overlap
+           // fullWidth // Makes the input take the full width of its container
+          />
+          <TextField
+              type="date"
+              label="End Date"
+              variant="outlined"
+              onChange={(e) => setDateRange([dateRange[0], new Date(e.target.value)])}
+              sx={{ marginLeft: 2 }} // Keep left margin consistent
+              InputLabelProps={{ shrink: true }} // Ensure label does not overlap
+              //fullWidth // Makes the input take the full width of its container
+            />
 
-        {/* Barcode Reader for mobile scanning */}
-        <BarcodeReader onError={handleError} onScan={handleScan} />
-
-        <Grid item xs={12} container justifyContent="space-between" alignItems="center">
-          <div>
-            <Tooltip title="Filter">
-              <IconButton onClick={handleFilterClick}>
-                <FilterListIcon sx={{ color: theme.palette.text.primary }} />
-              </IconButton>
-            </Tooltip>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={() => setAnchorEl(null)}
-            >
-              <MenuItem onClick={() => handleFilterSelect('all')}>All Items</MenuItem>
-              <MenuItem onClick={() => handleFilterSelect('active')}>Active Items</MenuItem>
-              <MenuItem onClick={() => handleFilterSelect('deleted')}>Deleted Items</MenuItem>
-            </Menu>
-          </div>
-
-          <Tooltip title="Export">
-            <IconButton onClick={handleExport}>
+          <Tooltip title="Export Data">
+            <IconButton onClick={handleExport} sx={{ marginLeft: 2 }}>
               <ExportIcon sx={{ color: theme.palette.text.primary }} />
             </IconButton>
           </Tooltip>
@@ -224,48 +295,34 @@ const DetailsPage = () => {
 
         <Grid item xs={12}>
           <TableContainer component={Paper} sx={{ backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
-            <Table sx={{ minWidth: 650 }} aria-label="simple table">
+            <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Serial No</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Item Name</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Rack Name</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Rack Slot Label</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Quantity Stored</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Date Stored</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Material Code</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Barcode</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Supplier Name</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Category Name</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Soft Deleted</TableCell>
-                  <TableCell sx={{ color: theme.palette.text.primary }}>Barcode Image</TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Item Name</TableCell>
+                  <TableCell>Rack Name</TableCell>
+                  <TableCell>Rack Slot Label</TableCell>
+                  <TableCell>Quantity Stored</TableCell>
+                  <TableCell>Date Stored</TableCell>
+                  <TableCell>Material Code</TableCell>
+                  <TableCell>Barcode</TableCell>
+                  <TableCell>Supplier Name</TableCell>
+                  <TableCell>Category Name</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRackItems.map((rackItem, index) => (
-                  <TableRow
-                    key={rackItem.rackItemId}
-                    style={rackItem.isDeleted ? { backgroundColor: theme.palette.error.light } : {}}
-                  >
-                    <TableCell>{index + 1}</TableCell>
+                {filteredRackItems.map((rackItem) => (
+                  <TableRow key={rackItem.rackItemId}>
+                    <TableCell>{rackItem.rackItemId}</TableCell>
                     <TableCell>{items[rackItem.itemId]?.name || 'N/A'}</TableCell>
                     <TableCell>{rackCodeMap[rackItem.RackSlot?.rackId] || 'N/A'}</TableCell>
                     <TableCell>{rackItem.RackSlot?.slotLabel || 'N/A'}</TableCell>
                     <TableCell>{rackItem.quantityStored}</TableCell>
-                    <TableCell>{rackItem.dateStored}</TableCell>
+                    <TableCell>{new Date(rackItem.dateStored).toLocaleDateString()}</TableCell>
                     <TableCell>{rackItem.materialCode}</TableCell>
                     <TableCell>{items[rackItem.itemId]?.barcode || 'N/A'}</TableCell>
                     <TableCell>{suppliers[items[rackItem.itemId]?.supplierId]?.supplierName || 'N/A'}</TableCell>
                     <TableCell>{categories[items[rackItem.itemId]?.categoryId]?.categoryName || 'N/A'}</TableCell>
-                    <TableCell>{rackItem.isDeleted ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ width: 100, height: 50, cursor: 'pointer' }}
-                        onClick={() => handleScan(rackItem.Item?.barcode)}
-                      >
-                        <img src={rackItem.Item?.barcodeImage} alt="Barcode" style={{ width: '100%' }} />
-                      </Box>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -277,14 +334,20 @@ const DetailsPage = () => {
           <DialogTitle>Scanned Item Details</DialogTitle>
           <DialogContent>
             {scannedItem && (
-              <div>
-                <Typography variant="h6">{scannedItem.name}</Typography>
-                <Typography>Barcode: {scannedItem.barcode}</Typography>
-                {/* Add any other item details you want to display */}
-              </div>
+              <Box>
+                <Typography variant="h6">Item Name: {scannedItem.name}</Typography>
+                <Typography>Material Code: {scannedItem.materialCode}</Typography>
+                <Typography>Supplier: {suppliers[scannedItem.supplierId]?.supplierName}</Typography>
+                <Typography>Category: {categories[scannedItem.categoryId]?.categoryName}</Typography>
+              </Box>
             )}
           </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose} color="primary">Close</Button>
+          </DialogActions>
         </Dialog>
+
+        <BarcodeReader onScan={handleScan} onError={handleError} />
       </Grid>
     </Box>
   );

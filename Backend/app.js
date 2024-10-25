@@ -18,6 +18,7 @@ const rackSlotRoutes = require('./routes/rackSlotRoutes');
 const stockMovementRoutes = require('./routes/stockMovementRoutes');
 const roleRoutes = require('./routes/roles');
 const fileRoutes = require('./routes/fileRoutes'); // Import file routes
+const search =require('./routes/search')
 
 const { sequelize } = require('./config/db'); // Import the Sequelize instance
 const FileMetadata = require('./models/fileMetadata'); // Import the FileMetadata model
@@ -57,6 +58,7 @@ app.use('/api/rack-slots', rackSlotRoutes);
 app.use('/api/role', roleRoutes);
 app.use('/api/stock-movements', stockMovementRoutes);
 app.use('/api/files', fileRoutes); // Use file routes
+app.use('/api',search)
 
 // Default route for testing
 app.get('/', (req, res) => {

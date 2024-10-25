@@ -10,23 +10,21 @@ const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <Box display="flex" width="100%" height="100vh"> {/* Use height: 100vh to ensure full viewport height */}
+    <Box display="flex" width="100%" height="100vh"> {/* Use 100vh for full viewport height */}
       <Sidebar
         isNonMobile={isNonMobile}
-        drawerWidth="250px"
+        drawerWidth="240px"
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
       />
-      <Box flexGrow={1}>
-        {/* Position the Navbar at the top and ensure no blank space */}
-        <Box position="sticky" top={0} zIndex={10}> {/* Use position: sticky */}
+      <Box flexGrow={1} display="flex" flexDirection="column" height="100vh"> {/* Make sure this takes the full height */}
+        <Box position="sticky" top={0} zIndex={10}>
           <Navbar
             isSidebarOpen={isSidebarOpen}
             setIsSidebarOpen={setIsSidebarOpen}
           />
         </Box>
-        {/* Main content */}
-        <Box padding="20px" overflow="auto" height="calc(100vh - 64px)"> {/* Adjust height based on Navbar height */}
+        <Box padding="10px" overflow="auto" flexGrow={1} height="100%">
           <Outlet />
         </Box>
       </Box>

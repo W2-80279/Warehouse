@@ -12,14 +12,23 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import VisibilityIcon from '@mui/icons-material/Visibility'; // Eye icon for details view
-import ItemDetailView from './ItemDetailView'; // Detailed view component
-import { useTheme } from '@mui/material/styles'; // Import useTheme to get theme context
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import ItemDetailView from './ItemDetailView';
+import { useTheme } from '@mui/material/styles';
+import { useSelector } from 'react-redux';
+import { selectSearchQuery } from '../../features/searchSlice'; // Import the selector
 
 const ItemTable = ({ items = [], categories = [], suppliers = [], onEdit, onDelete }) => {
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const theme = useTheme(); // Get the theme from the context
+  const theme = useTheme();
+  const searchQuery = useSelector(selectSearchQuery); // Get search query from Redux
+
+  // Filter items based on search query
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleViewDetails = (item) => {
     setSelectedItem(item);
@@ -48,8 +57,8 @@ const ItemTable = ({ items = [], categories = [], suppliers = [], onEdit, onDele
           </TableRow>
         </TableHead>
         <TableBody>
-          {items.length > 0 ? (
-            items.map((item) => (
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => (
               <TableRow key={item.itemId}>
                 <TableCell sx={{ textAlign: 'center', p: { xs: 1, sm: 2 } }}>{item.sku}</TableCell>
                 <TableCell sx={{ textAlign: 'center', p: { xs: 1, sm: 2 } }}>{item.name}</TableCell>
@@ -64,38 +73,29 @@ const ItemTable = ({ items = [], categories = [], suppliers = [], onEdit, onDele
                 <TableCell sx={{ textAlign: 'center', p: { xs: 1, sm: 2 } }}>{item.stockLevel}</TableCell>
                 <TableCell sx={{ textAlign: 'center', p: { xs: 1, sm: 2 } }}>{item.minStockLevel}</TableCell>
                 <TableCell sx={{ textAlign: 'center', p: { xs: 1, sm: 2 } }}>
-                  <IconButton onClick={() => onEdit(item)} sx={{ p: { xs: 0.5, sm: 1 } }}>
+                  <IconButton onClick={() => handleViewDetails(item)}>
+                    <VisibilityIcon />
+                  </IconButton>
+                  <IconButton onClick={() => onEdit(item)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton onClick={() => onDelete(item.itemId)} sx={{ p: { xs: 0.5, sm: 1 } }}>
+                  <IconButton onClick={() => onDelete(item.itemId)}>
                     <DeleteIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleViewDetails(item)} sx={{ p: { xs: 0.5, sm: 1 } }}>
-                    <VisibilityIcon />
                   </IconButton>
                 </TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={9} align="center" sx={{ p: { xs: 1, sm: 2 } }}>
-                No items available
+              <TableCell colSpan={9} sx={{ textAlign: 'center' }}>
+                No items found.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
-
-      {/* Dialog for detailed view */}
-      <Dialog open={openDetail} onClose={handleCloseDetail} fullWidth maxWidth="md">
-        {selectedItem && (
-          <ItemDetailView
-            item={selectedItem}
-            categories={categories}
-            suppliers={suppliers}
-            onClose={handleCloseDetail}
-          />
-        )}
+      <Dialog open={openDetail} onClose={handleCloseDetail}>
+        <ItemDetailView item={selectedItem} onClose={handleCloseDetail} />
       </Dialog>
     </TableContainer>
   );

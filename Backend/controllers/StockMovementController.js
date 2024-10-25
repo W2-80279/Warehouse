@@ -234,3 +234,12 @@ exports.deleteStockMovement = async (req, res) => {
         res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
+
+exports.countStockMovement = async(req,res)=>{
+    try {
+        const count = await StockMovement.count(); 
+        res.status(200).json({ total: count }); 
+    } catch (error) {
+        res.status(500).json({ message: 'Error counting rack slots', error: error.message });
+    }
+}

@@ -151,3 +151,14 @@ exports.checkSlotCapacity = async (req, res) => {
         res.status(500).json({ message: 'Error fetching slot capacity', error });
     }
 };
+
+// Count total rack slots
+exports.countRackSlots = async (req, res) => {
+    try {
+        const count = await RackSlot.count(); // Counts all rack slots in the database
+        res.status(200).json({ total: count }); // Return the total count
+    } catch (error) {
+        res.status(500).json({ message: 'Error counting rack slots', error: error.message });
+    }
+};
+

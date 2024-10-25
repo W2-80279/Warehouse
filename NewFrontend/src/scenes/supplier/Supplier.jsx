@@ -29,9 +29,9 @@ const Supplier = () => {
   const [editSupplier, setEditSupplier] = useState(null);
   const [newSupplier, setNewSupplier] = useState({
     supplierName: '',
-    contactPerson: '',  // Added contactPerson
-    email: '',          // Added email
-    phone: '',          // Added phone
+    contactPerson: '',
+    email: '',
+    phone: '',
     address: '',
   });
 
@@ -59,9 +59,9 @@ const Supplier = () => {
     setEditSupplier(supplier);
     setNewSupplier({
       supplierName: supplier?.supplierName || '',
-      contactPerson: supplier?.contactPerson || '', // Added contactPerson
-      email: supplier?.email || '',                // Added email
-      phone: supplier?.phone || '',                // Added phone
+      contactPerson: supplier?.contactPerson || '',
+      email: supplier?.email || '',
+      phone: supplier?.phone || '',
       address: supplier?.address || '',
     });
     setOpenDialog(true);
@@ -110,7 +110,7 @@ const Supplier = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 ,backgroundColor: theme.palette.background.default, color: theme.palette.text.primary  }}>
       <Typography
         variant="h4"
         gutterBottom
@@ -123,18 +123,18 @@ const Supplier = () => {
         color="primary"
         startIcon={<AddIcon />}
         onClick={() => handleOpenDialog(null)}
-        sx={{ mb: 2 }}
-      >sx={{ backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}
+        sx={{ backgroundColor: theme.palette.background.default, color: theme.palette.text.primary, mb: 2 }} // Corrected the sx usage here
+      >
         Add Supplier
       </Button>
-      <TableContainer component={Paper} >
+      <TableContainer component={Paper} sx={{backgroundColor: theme.palette.background.default, color: theme.palette.text.primary }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell sx={{ color: theme.palette.text.primary }}>Supplier Name</TableCell>
-              <TableCell sx={{ color: theme.palette.text.primary }}>Contact Person</TableCell> {/* Added */}
-              <TableCell sx={{ color: theme.palette.text.primary }}>Email</TableCell> {/* Added */}
-              <TableCell sx={{ color: theme.palette.text.primary }}>Phone</TableCell> {/* Added */}
+              <TableCell sx={{ color: theme.palette.text.primary }}>Contact Person</TableCell> 
+              <TableCell sx={{ color: theme.palette.text.primary }}>Email</TableCell> 
+              <TableCell sx={{ color: theme.palette.text.primary }}>Phone</TableCell> 
               <TableCell sx={{ color: theme.palette.text.primary }}>Address</TableCell>
               <TableCell sx={{ color: theme.palette.text.primary }}>Actions</TableCell>
             </TableRow>
@@ -143,9 +143,9 @@ const Supplier = () => {
             {suppliers.map((supplier) => (
               <TableRow key={supplier.supplierId}>
                 <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.supplierName}</TableCell>
-                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.contactPerson}</TableCell> {/* Added */}
-                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.email}</TableCell> {/* Added */}
-                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.phone}</TableCell> {/* Added */}
+                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.contactPerson}</TableCell>
+                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.email}</TableCell>
+                <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.phone}</TableCell>
                 <TableCell sx={{ color: theme.palette.text.primary }}>{supplier.address}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleOpenDialog(supplier)}>
@@ -177,8 +177,8 @@ const Supplier = () => {
           />
           <TextField
             label="Contact Person"
-            name="contactPerson" // Added
-            value={newSupplier.contactPerson} // Added
+            name="contactPerson"
+            value={newSupplier.contactPerson}
             onChange={handleChange}
             fullWidth
             margin="dense"
@@ -186,8 +186,8 @@ const Supplier = () => {
           />
           <TextField
             label="Email"
-            name="email" // Added
-            value={newSupplier.email} // Added
+            name="email"
+            value={newSupplier.email}
             onChange={handleChange}
             fullWidth
             margin="dense"
@@ -195,8 +195,8 @@ const Supplier = () => {
           />
           <TextField
             label="Phone"
-            name="phone" // Added
-            value={newSupplier.phone} // Added
+            name="phone"
+            value={newSupplier.phone}
             onChange={handleChange}
             fullWidth
             margin="dense"

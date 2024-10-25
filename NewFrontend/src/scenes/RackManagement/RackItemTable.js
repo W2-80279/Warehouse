@@ -1,4 +1,3 @@
-// RackItemTable.js
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
@@ -10,14 +9,13 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Button,
-  Menu,
-  MenuItem,
   IconButton,
   Typography,
   Box,
   useTheme,
   useMediaQuery,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,10 +25,12 @@ import { moveStock } from '../../features/movementSlice';
 import EditRackItemModal from './EditRackItemModal';
 import StockMovementForm from '../movement/StockMovementForm';
 import FlexBetween from '../../components/FlexBetween';
+import { selectSearchQuery } from '../../features/searchSlice'; // Use the search selector
 
 const RackItemTable = () => {
   const dispatch = useDispatch();
   const { rackItems } = useSelector((state) => state.rackItems);
+  const searchQuery = useSelector(selectSearchQuery); // Get the search query from the store
   const { success } = useSelector((state) => state.movement);
   const [racks, setRacks] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
@@ -95,8 +95,20 @@ const RackItemTable = () => {
     }
   }, [success, dispatch]);
 
+  // Filter rack items based on the search query
+  const filteredRackItems = rackItems.filter((rackItem) => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return (
+      (rackItem.Item?.name.toLowerCase().includes(lowerCaseQuery)) || // Search by item name
+      (rackItem.materialCode.toLowerCase().includes(lowerCaseQuery)) || // Search by material code
+      (rackItem.quantityStored.toString().includes(lowerCaseQuery)) || // Search by quantity
+      (rackItem.RackSlot?.slotLabel.toLowerCase().includes(lowerCaseQuery)) || // Search by rack slot
+      (rackItem.RackSlot?.rackId.toString().includes(lowerCaseQuery)) // Optionally search by rack ID
+    );
+  });
+
   return (
-    <Box sx={{ p: 3, display:FlexBetween }}>
+    <Box sx={{ p: 3, display: FlexBetween }}>
       <Typography variant="h4" gutterBottom sx={{ color: theme.palette.text.primary }}>
         Rack Items
       </Typography>
@@ -115,7 +127,7 @@ const RackItemTable = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rackItems.map((rackItem, index) => (
+            {filteredRackItems.map((rackItem, index) => (
               <TableRow key={rackItem.rackItemId}>
                 <TableCell>{index + 1}</TableCell>
                 <TableCell>{rackItem.Item?.name || 'N/A'}</TableCell>

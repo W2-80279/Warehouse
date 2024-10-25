@@ -6,6 +6,8 @@ import { configureStore } from '@reduxjs/toolkit';
 import globalReducer from "./state";  // Add './' to make it a relative path
 import rackItemReducer from './features/rackItemSlice';
 import movementReducer from './features/movementSlice';  // Import the rackItemSlice you created
+import searchReducer from './features/searchSlice';
+import rackUtilizationReducer from './features/rackUtilizationSlice';
 // import racksReducer from './features/rackSlice';  // If you want to add racksSlice in future, uncomment
 
 import { Provider } from "react-redux";
@@ -15,6 +17,8 @@ const store = configureStore({
     global: globalReducer,
     rackItems: rackItemReducer, // Add the rackItem slice to the reducer
     movement: movementReducer ,
+    search: searchReducer,
+    rackUtilization: rackUtilizationReducer,
     // racks: racksReducer,  // Uncomment and add racksReducer if needed
   },
 })

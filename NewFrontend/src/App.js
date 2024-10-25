@@ -18,6 +18,7 @@ import RackSlotForm from './scenes/RackManagement/RackSlotForm';
 import RackItemForm from './scenes/RackManagement/RackItemForm';
 import StockMovementTable from './scenes/movement/StockMovementTable';
 import DetailsPage from './scenes/movement/DetailsPage';
+import RackSlotChart from './components/RackSlotChart';
 
 function App() {
   const mode = useSelector((state) => state.global.mode);
@@ -54,7 +55,8 @@ function App() {
                 <Route path="/rack-slot" element={<RackSlotForm/>}/>
                 <Route path="/rackForm" element={<RackItemForm/>}/>
                 <Route path="/movementTable" element={<StockMovementTable />}/>
-                <Route path="details" element={<DetailsPage/>}/>
+                <Route path="/details" element={<DetailsPage/>}/>
+                <Route path="/chart" element={<RackSlotChart/>}/>c
 
               
               
